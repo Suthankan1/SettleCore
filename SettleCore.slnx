@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/SettleCore.Api/SettleCore.Api.csproj" />
+    <Project Path="src/SettleCore.Modules.Payments/SettleCore.Modules.Payments.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SettleCore.IntegrationTests/SettleCore.IntegrationTests.csproj" />
