@@ -31,4 +31,25 @@ public sealed class PaymentTests
 
         Assert.Equal("amount", exception.ParamName);
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("   ")]
+    public void CreateWithBlankCurrencyThrows(string currency)
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => Payment.Create(100.00m, currency));
+
+        Assert.Equal("currency", exception.ParamName);
+    }
+
+    [Fact]
+    public void CreateWithNullCurrencyThrows()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(
+            () => Payment.Create(100.00m, null!));
+
+        Assert.Equal("currency", exception.ParamName);
+    }
 }

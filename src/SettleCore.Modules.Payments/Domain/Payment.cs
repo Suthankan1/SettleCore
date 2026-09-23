@@ -25,6 +25,15 @@ public sealed class Payment
                 "Payment amount must be greater than zero.");
         }
 
+        ArgumentNullException.ThrowIfNull(currency);
+
+        if (string.IsNullOrWhiteSpace(currency))
+        {
+            throw new ArgumentException(
+                "Payment currency must not be blank.",
+                nameof(currency));
+        }
+
         return new Payment(amount, currency);
     }
 }
