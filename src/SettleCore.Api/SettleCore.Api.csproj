@@ -8,4 +8,8 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SettleCore.Modules.Payments.Infrastructure\SettleCore.Modules.Payments.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
