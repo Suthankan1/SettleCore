@@ -18,9 +18,17 @@ public sealed class HealthEndpointTests
     }
 
     [Fact]
-    public async Task GetHealthReturnsOk()
+    public async Task GetLivenessReturnsOk()
     {
-        using var response = await _client.GetAsync("/health");
+        using var response = await _client.GetAsync("/health/live");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetReadinessReturnsOk()
+    {
+        using var response = await _client.GetAsync("/health/ready");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
