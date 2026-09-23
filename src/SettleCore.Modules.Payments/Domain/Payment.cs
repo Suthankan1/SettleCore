@@ -2,12 +2,18 @@ namespace SettleCore.Modules.Payments.Domain;
 
 public sealed class Payment
 {
-    private Payment(decimal amount, string currency)
+    private Payment(
+        PaymentId id,
+        decimal amount,
+        string currency)
     {
+        Id = id;
         Amount = amount;
         Currency = currency;
         Status = PaymentStatus.Pending;
     }
+
+    public PaymentId Id { get; }
 
     public decimal Amount { get; }
 
@@ -42,6 +48,7 @@ public sealed class Payment
         }
 
         return new Payment(
+            PaymentId.New(),
             amount,
             currency.ToUpperInvariant());
     }

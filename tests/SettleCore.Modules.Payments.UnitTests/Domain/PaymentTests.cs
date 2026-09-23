@@ -73,4 +73,12 @@ public sealed class PaymentTests
 
         Assert.Equal("currency", exception.ParamName);
     }
+
+    [Fact]
+    public void CreateGeneratesNonEmptyPaymentId()
+    {
+        var payment = Payment.Create(100.00m, "SGD");
+
+        Assert.NotEqual(PaymentId.Empty, payment.Id);
+    }
 }
