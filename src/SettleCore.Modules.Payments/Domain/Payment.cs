@@ -17,6 +17,14 @@ public sealed class Payment
 
     public static Payment Create(decimal amount, string currency)
     {
+        if (amount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(amount),
+                amount,
+                "Payment amount must be greater than zero.");
+        }
+
         return new Payment(amount, currency);
     }
 }
