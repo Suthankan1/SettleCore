@@ -5,12 +5,13 @@ public sealed class Payment
     private Payment(
         PaymentId id,
         decimal amount,
-        string currency)
+        string currency,
+        PaymentStatus status)
     {
         Id = id;
         Amount = amount;
         Currency = currency;
-        Status = PaymentStatus.Pending;
+        Status = status;
     }
 
     public PaymentId Id { get; }
@@ -23,6 +24,41 @@ public sealed class Payment
 
     public static Payment Create(decimal amount, string currency)
     {
+        ValidateAmount(amount);
+        var normalizedCurrency = ValidateAndNormalizeCurrency(currency);
+
+        return new Payment(
+            PaymentId.New(),
+            amount,
+            normalizedCurrency,
+            PaymentStatus.Pending);
+    }
+
+    public static Payment Rehydrate(
+        PaymentId id,
+        decimal amount,
+        string currency,
+        PaymentStatus status)
+    {
+        if (id == PaymentId.Empty)
+        {
+            throw new ArgumentException(
+                "Payment ID must not be empty.",
+                nameof(id));
+        }
+
+        ValidateAmount(amount);
+        var normalizedCurrency = ValidateAndNormalizeCurrency(currency);
+
+        return new Payment(
+            id,
+            amount,
+            normalizedCurrency,
+            status);
+    }
+
+    private static void ValidateAmount(decimal amount)
+    {
         if (amount <= 0)
         {
             throw new ArgumentOutOfRangeException(
@@ -30,7 +66,10 @@ public sealed class Payment
                 amount,
                 "Payment amount must be greater than zero.");
         }
+    }
 
+    private static string ValidateAndNormalizeCurrency(string currency)
+    {
         ArgumentNullException.ThrowIfNull(currency);
 
         if (string.IsNullOrWhiteSpace(currency))
@@ -47,9 +86,6 @@ public sealed class Payment
                 nameof(currency));
         }
 
-        return new Payment(
-            PaymentId.New(),
-            amount,
-            currency.ToUpperInvariant());
+        return currency.ToUpperInvariant();
     }
 }

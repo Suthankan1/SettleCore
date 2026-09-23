@@ -81,4 +81,34 @@ public sealed class PaymentTests
 
         Assert.NotEqual(PaymentId.Empty, payment.Id);
     }
+
+    [Fact]
+    public void RehydratePreservesExistingPaymentState()
+    {
+        var id = PaymentId.From(Guid.NewGuid());
+
+        var payment = Payment.Rehydrate(
+            id,
+            100.00m,
+            "SGD",
+            PaymentStatus.Pending);
+
+        Assert.Equal(id, payment.Id);
+        Assert.Equal(100.00m, payment.Amount);
+        Assert.Equal("SGD", payment.Currency);
+        Assert.Equal(PaymentStatus.Pending, payment.Status);
+    }
+
+    [Fact]
+    public void RehydrateWithEmptyPaymentIdThrows()
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => Payment.Rehydrate(
+                PaymentId.Empty,
+                100.00m,
+                "SGD",
+                PaymentStatus.Pending));
+
+        Assert.Equal("id", exception.ParamName);
+    }
 }
