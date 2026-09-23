@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using SettleCore.Api.Endpoints;
 using SettleCore.Modules.Payments.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.MapPaymentsEndpoints();
 
 app.MapHealthChecks(
     "/health/live",
