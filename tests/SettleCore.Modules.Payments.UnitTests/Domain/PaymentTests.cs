@@ -52,4 +52,25 @@ public sealed class PaymentTests
 
         Assert.Equal("currency", exception.ParamName);
     }
+
+    [Fact]
+    public void CreateWithLowercaseCurrencyNormalizesToUppercase()
+    {
+        var payment = Payment.Create(100.00m, "sgd");
+
+        Assert.Equal("SGD", payment.Currency);
+    }
+
+    [Theory]
+    [InlineData("SG")]
+    [InlineData("SGDD")]
+    [InlineData("123")]
+    [InlineData("S$D")]
+    public void CreateWithInvalidCurrencyFormatThrows(string currency)
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => Payment.Create(100.00m, currency));
+
+        Assert.Equal("currency", exception.ParamName);
+    }
 }

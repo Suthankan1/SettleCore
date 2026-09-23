@@ -34,6 +34,15 @@ public sealed class Payment
                 nameof(currency));
         }
 
-        return new Payment(amount, currency);
+        if (currency.Length != 3 || !currency.All(char.IsLetter))
+        {
+            throw new ArgumentException(
+                "Payment currency must be a three-letter alphabetic code.",
+                nameof(currency));
+        }
+
+        return new Payment(
+            amount,
+            currency.ToUpperInvariant());
     }
 }
