@@ -24,7 +24,7 @@ public sealed class PaymentPersistenceTests
 
         await using var dbContext = new PaymentsDbContext(options);
 
-        await dbContext.Database.EnsureCreatedAsync();
+        await dbContext.Database.MigrateAsync();
 
         var payment = Payment.Create(125.50m, "sgd");
 
