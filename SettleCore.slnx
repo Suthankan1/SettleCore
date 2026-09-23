@@ -5,5 +5,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SettleCore.IntegrationTests/SettleCore.IntegrationTests.csproj" />
+    <Project Path="tests/SettleCore.Modules.Payments.UnitTests/SettleCore.Modules.Payments.UnitTests.csproj" />
   </Folder>
 </Solution>
