@@ -16,7 +16,9 @@ public sealed class GetPaymentEndpointTests
     [Fact]
     public async Task GetPaymentReturnsPaymentWhenItExists()
     {
-        var payment = Payment.Create(75.25m, "sgd");
+        var payment = Payment.Create(
+            75.25m,
+            "sgd");
 
         using var factory =
             new PaymentsApiFactory(payment);
@@ -57,6 +59,61 @@ public sealed class GetPaymentEndpointTests
         Assert.Equal(
             "Pending",
             foundPayment.Status);
+
+        Assert.Null(
+            foundPayment.Provider);
+
+        Assert.Null(
+            foundPayment.ProviderReference);
+    }
+
+    [Fact]
+    public async Task GetPaymentReturnsProviderReferenceWhenAttached()
+    {
+        var payment = Payment.Create(
+            75.25m,
+            "sgd");
+
+        payment.AttachProviderReference(
+            ProviderPaymentReference.Create(
+                "stripe",
+                "pi_3ABC123"));
+
+        using var factory =
+            new PaymentsApiFactory(payment);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.GetAsync(
+            $"/payments/{payment.Id.Value}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        var result =
+            await response.Content
+                .ReadFromJsonAsync<GetPaymentByIdResult>();
+
+        var foundPayment =
+            Assert.IsType<GetPaymentByIdResult>(result);
+
+        Assert.Equal(
+            payment.Id.Value,
+            foundPayment.PaymentId);
+
+        Assert.Equal(
+            "stripe",
+            foundPayment.Provider);
+
+        Assert.Equal(
+            "pi_3ABC123",
+            foundPayment.ProviderReference);
     }
 
     [Fact]
