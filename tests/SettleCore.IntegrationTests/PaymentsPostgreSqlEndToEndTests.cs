@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SettleCore.Modules.Payments.Application.CreatePayment;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
+using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -57,7 +58,8 @@ public sealed class PaymentsPostgreSqlEndToEndTests
             createResponse.StatusCode);
 
         var created =
-            await createResponse.Content.ReadFromJsonAsync<CreatePaymentResult>();
+            await createResponse.Content
+                .ReadFromJsonAsync<CreatePaymentResult>();
 
         var createdPayment =
             Assert.IsType<CreatePaymentResult>(created);
@@ -86,7 +88,8 @@ public sealed class PaymentsPostgreSqlEndToEndTests
             getResponse.StatusCode);
 
         var fetched =
-            await getResponse.Content.ReadFromJsonAsync<GetPaymentByIdResult>();
+            await getResponse.Content
+                .ReadFromJsonAsync<GetPaymentByIdResult>();
 
         var fetchedPayment =
             Assert.IsType<GetPaymentByIdResult>(fetched);
@@ -105,6 +108,120 @@ public sealed class PaymentsPostgreSqlEndToEndTests
 
         Assert.Equal(
             createdPayment.Status,
+            fetchedPayment.Status);
+    }
+
+    [Fact]
+    public async Task SucceedPaymentPersistsSucceededStatusThroughPostgreSql()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine")
+            .WithDatabase("settlecore_test")
+            .WithUsername("settlecore")
+            .WithPassword("settlecore")
+            .Build();
+
+        await postgres.StartAsync();
+
+        using var factory =
+            new PaymentsApiFactory(postgres.GetConnectionString());
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext =
+                scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+
+            await dbContext.Database.MigrateAsync();
+        }
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/payments",
+            new
+            {
+                amount = 500.00m,
+                currency = "sgd"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<CreatePaymentResult>();
+
+        var createdPayment =
+            Assert.IsType<CreatePaymentResult>(created);
+
+        Assert.Equal(
+            "Pending",
+            createdPayment.Status);
+
+        var succeedResponse = await client.PostAsync(
+            $"/payments/{createdPayment.PaymentId}/succeed",
+            content: null);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            succeedResponse.StatusCode);
+
+        var succeeded =
+            await succeedResponse.Content
+                .ReadFromJsonAsync<MarkPaymentSucceededResult>();
+
+        var succeededPayment =
+            Assert.IsType<MarkPaymentSucceededResult>(succeeded);
+
+        Assert.Equal(
+            createdPayment.PaymentId,
+            succeededPayment.PaymentId);
+
+        Assert.Equal(
+            500.00m,
+            succeededPayment.Amount);
+
+        Assert.Equal(
+            "SGD",
+            succeededPayment.Currency);
+
+        Assert.Equal(
+            "Succeeded",
+            succeededPayment.Status);
+
+        var getResponse = await client.GetAsync(
+            $"/payments/{createdPayment.PaymentId}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            getResponse.StatusCode);
+
+        var fetched =
+            await getResponse.Content
+                .ReadFromJsonAsync<GetPaymentByIdResult>();
+
+        var fetchedPayment =
+            Assert.IsType<GetPaymentByIdResult>(fetched);
+
+        Assert.Equal(
+            createdPayment.PaymentId,
+            fetchedPayment.PaymentId);
+
+        Assert.Equal(
+            500.00m,
+            fetchedPayment.Amount);
+
+        Assert.Equal(
+            "SGD",
+            fetchedPayment.Currency);
+
+        Assert.Equal(
+            "Succeeded",
             fetchedPayment.Status);
     }
 
