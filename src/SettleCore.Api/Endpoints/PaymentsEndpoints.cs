@@ -1,4 +1,5 @@
 using SettleCore.Modules.Payments.Application.CreatePayment;
+using SettleCore.Modules.Payments.Application.GetPaymentById;
 
 namespace SettleCore.Api.Endpoints;
 
@@ -44,6 +45,46 @@ public static class PaymentsEndpoints
             .WithName("CreatePayment")
             .Produces<CreatePaymentResult>(
                 StatusCodes.Status201Created)
+            .ProducesValidationProblem(
+                StatusCodes.Status400BadRequest);
+
+        endpoints.MapGet(
+                "/payments/{paymentId:guid}",
+                async Task<IResult> (
+                    Guid paymentId,
+                    GetPaymentByIdHandler handler,
+                    CancellationToken cancellationToken) =>
+                {
+                    try
+                    {
+                        var result = await handler.HandleAsync(
+                            new GetPaymentByIdQuery(paymentId),
+                            cancellationToken);
+
+                        return result is null
+                            ? Results.NotFound()
+                            : Results.Ok(result);
+                    }
+                    catch (ArgumentException exception)
+                    {
+                        var parameterName =
+                            exception.ParamName ?? "paymentId";
+
+                        return Results.ValidationProblem(
+                            new Dictionary<string, string[]>
+                            {
+                                [parameterName] =
+                                [
+                                    exception.Message
+                                ]
+                            });
+                    }
+                })
+            .WithName("GetPaymentById")
+            .Produces<GetPaymentByIdResult>(
+                StatusCodes.Status200OK)
+            .Produces(
+                StatusCodes.Status404NotFound)
             .ProducesValidationProblem(
                 StatusCodes.Status400BadRequest);
 
