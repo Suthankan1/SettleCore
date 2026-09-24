@@ -2,6 +2,8 @@ namespace SettleCore.Modules.Payments.Domain;
 
 public sealed class Payment
 {
+    private ProviderPaymentReference? _providerReference;
+
     private Payment(
         PaymentId id,
         decimal amount,
@@ -22,10 +24,17 @@ public sealed class Payment
 
     public PaymentStatus Status { get; private set; }
 
-    public static Payment Create(decimal amount, string currency)
+    public ProviderPaymentReference? ProviderReference =>
+        _providerReference;
+
+    public static Payment Create(
+        decimal amount,
+        string currency)
     {
         ValidateAmount(amount);
-        var normalizedCurrency = ValidateAndNormalizeCurrency(currency);
+
+        var normalizedCurrency =
+            ValidateAndNormalizeCurrency(currency);
 
         return new Payment(
             PaymentId.New(),
@@ -48,7 +57,9 @@ public sealed class Payment
         }
 
         ValidateAmount(amount);
-        var normalizedCurrency = ValidateAndNormalizeCurrency(currency);
+
+        var normalizedCurrency =
+            ValidateAndNormalizeCurrency(currency);
 
         return new Payment(
             id,
@@ -68,7 +79,14 @@ public sealed class Payment
         Status = PaymentStatus.Succeeded;
     }
 
-    private static void ValidateAmount(decimal amount)
+    public void AttachProviderReference(
+        ProviderPaymentReference providerReference)
+    {
+        _providerReference = providerReference;
+    }
+
+    private static void ValidateAmount(
+        decimal amount)
     {
         if (amount <= 0)
         {
@@ -79,7 +97,8 @@ public sealed class Payment
         }
     }
 
-    private static string ValidateAndNormalizeCurrency(string currency)
+    private static string ValidateAndNormalizeCurrency(
+        string currency)
     {
         ArgumentNullException.ThrowIfNull(currency);
 
@@ -90,7 +109,8 @@ public sealed class Payment
                 nameof(currency));
         }
 
-        if (currency.Length != 3 || !currency.All(char.IsLetter))
+        if (currency.Length != 3 ||
+            !currency.All(char.IsLetter))
         {
             throw new ArgumentException(
                 "Payment currency must be a three-letter alphabetic code.",

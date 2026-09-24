@@ -136,4 +136,20 @@ public sealed class PaymentTests
             "Payment is already succeeded.",
             exception.Message);
     }
+
+    [Fact]
+    public void AttachProviderReferenceAssociatesExternalPaymentIdentity()
+    {
+        var payment = Payment.Create(100.00m, "SGD");
+
+        var providerReference = ProviderPaymentReference.Create(
+            "stripe",
+            "pi_3ABC123");
+
+        payment.AttachProviderReference(providerReference);
+
+        Assert.Equal(
+            providerReference,
+            payment.ProviderReference);
+    }
 }
