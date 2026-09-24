@@ -329,4 +329,87 @@ public sealed class PaymentsPostgreSqlEndToEndTests
             HttpStatusCode.Conflict,
             secondAttachResponse.StatusCode);
     }
+
+    [Fact]
+    public async Task AttachedProviderReferenceRoundTripsThroughPostgreSql()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine")
+            .WithDatabase("settlecore_test")
+            .WithUsername("settlecore")
+            .WithPassword("settlecore")
+            .Build();
+
+        await postgres.StartAsync();
+
+        using var factory =
+            new PaymentsApiFactory(postgres.GetConnectionString());
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext =
+                scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+
+            await dbContext.Database.MigrateAsync();
+        }
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/payments",
+            new
+            {
+                amount = 250.00m,
+                currency = "SGD"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode);
+
+        var created =
+            Assert.IsType<CreatePaymentResult>(
+                await createResponse.Content
+                    .ReadFromJsonAsync<CreatePaymentResult>());
+
+        var attachResponse = await client.PostAsJsonAsync(
+            $"/payments/{created.PaymentId}/provider-reference",
+            new
+            {
+                provider = "stripe",
+                reference = "pi_roundtrip"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            attachResponse.StatusCode);
+
+        var getResponse = await client.GetAsync(
+            $"/payments/{created.PaymentId}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            getResponse.StatusCode);
+
+        var fetched =
+            Assert.IsType<GetPaymentByIdResult>(
+                await getResponse.Content
+                    .ReadFromJsonAsync<GetPaymentByIdResult>());
+
+        Assert.Equal(
+            created.PaymentId,
+            fetched.PaymentId);
+
+        Assert.Equal(
+            "stripe",
+            fetched.Provider);
+
+        Assert.Equal(
+            "pi_roundtrip",
+            fetched.ProviderReference);
+    }
 }
