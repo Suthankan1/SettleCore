@@ -249,4 +249,84 @@ public sealed class PaymentsPostgreSqlEndToEndTests
             });
         }
     }
+
+    [Fact]
+    public async Task DuplicateProviderReferenceReturnsConflict()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine")
+            .WithDatabase("settlecore_test")
+            .WithUsername("settlecore")
+            .WithPassword("settlecore")
+            .Build();
+
+        await postgres.StartAsync();
+
+        using var factory =
+            new PaymentsApiFactory(postgres.GetConnectionString());
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext =
+                scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+
+            await dbContext.Database.MigrateAsync();
+        }
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var firstCreateResponse = await client.PostAsJsonAsync(
+            "/payments",
+            new
+            {
+                amount = 100.00m,
+                currency = "SGD"
+            });
+
+        var firstPayment =
+            Assert.IsType<CreatePaymentResult>(
+                await firstCreateResponse.Content
+                    .ReadFromJsonAsync<CreatePaymentResult>());
+
+        var secondCreateResponse = await client.PostAsJsonAsync(
+            "/payments",
+            new
+            {
+                amount = 200.00m,
+                currency = "SGD"
+            });
+
+        var secondPayment =
+            Assert.IsType<CreatePaymentResult>(
+                await secondCreateResponse.Content
+                    .ReadFromJsonAsync<CreatePaymentResult>());
+
+        var firstAttachResponse = await client.PostAsJsonAsync(
+            $"/payments/{firstPayment.PaymentId}/provider-reference",
+            new
+            {
+                provider = "stripe",
+                reference = "pi_duplicate"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            firstAttachResponse.StatusCode);
+
+        var secondAttachResponse = await client.PostAsJsonAsync(
+            $"/payments/{secondPayment.PaymentId}/provider-reference",
+            new
+            {
+                provider = "stripe",
+                reference = "pi_duplicate"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.Conflict,
+            secondAttachResponse.StatusCode);
+    }
 }

@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SettleCore.Modules.Payments.Application.Abstractions;
+using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Domain;
 
 namespace SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
 
-public sealed class EfPaymentRepository(PaymentsDbContext dbContext)
+public sealed class EfPaymentRepository(
+    PaymentsDbContext dbContext)
     : IPaymentRepository
 {
     public async Task AddAsync(
@@ -38,7 +41,21 @@ public sealed class EfPaymentRepository(PaymentsDbContext dbContext)
 
         dbContext.Payments.Update(payment);
 
-        await dbContext.SaveChangesAsync(
-            cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(
+                cancellationToken);
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is PostgresException
+                  {
+                      SqlState: PostgresErrorCodes.UniqueViolation,
+                      ConstraintName:
+                      "ux_payments_provider_payment_reference"
+                  })
+        {
+            throw new ProviderPaymentReferenceConflictException(
+                exception);
+        }
     }
 }

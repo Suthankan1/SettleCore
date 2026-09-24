@@ -175,6 +175,14 @@ public static class PaymentsEndpoints
                                 ]
                             });
                     }
+                    catch (ProviderPaymentReferenceConflictException exception)
+                    {
+                        return Results.Conflict(
+                            new
+                            {
+                                error = exception.Message
+                            });
+                    }
                 })
             .WithName("AttachProviderReference")
             .Produces<AttachProviderReferenceResult>(
@@ -182,7 +190,9 @@ public static class PaymentsEndpoints
             .Produces(
                 StatusCodes.Status404NotFound)
             .ProducesValidationProblem(
-                StatusCodes.Status400BadRequest);
+                StatusCodes.Status400BadRequest)
+            .Produces(
+                StatusCodes.Status409Conflict);
 
         return endpoints;
     }
