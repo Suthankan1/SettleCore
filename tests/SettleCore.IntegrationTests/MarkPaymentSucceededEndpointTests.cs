@@ -68,56 +68,6 @@ public sealed class MarkPaymentSucceededEndpointTests
             updatedPayment.Status);
     }
 
-    private sealed class PaymentsApiFactory(
-        Payment payment)
-        : WebApplicationFactory<Program>
-    {
-        public RecordingPaymentRepository Repository { get; } =
-            new(payment);
-
-        protected override void ConfigureWebHost(
-            IWebHostBuilder builder)
-        {
-            builder.ConfigureTestServices(services =>
-            {
-                services.RemoveAll<IPaymentRepository>();
-
-                services.AddSingleton<IPaymentRepository>(
-                    Repository);
-            });
-        }
-    }
-
-    public sealed class RecordingPaymentRepository(
-        Payment payment)
-        : IPaymentRepository
-    {
-        public Payment? UpdatedPayment { get; private set; }
-
-        public Task AddAsync(
-            Payment payment,
-            CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<Payment?> GetByIdAsync(
-            PaymentId id,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult<Payment?>(payment);
-        }
-
-        public Task UpdateAsync(
-            Payment payment,
-            CancellationToken cancellationToken = default)
-        {
-            UpdatedPayment = payment;
-
-            return Task.CompletedTask;
-        }
-    }
-
     [Fact]
     public async Task PostSucceedWhenPaymentAlreadySucceededReturnsConflict()
     {
@@ -141,5 +91,77 @@ public sealed class MarkPaymentSucceededEndpointTests
         Assert.Equal(
             HttpStatusCode.Conflict,
             response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostSucceedWithEmptyPaymentIdReturnsBadRequest()
+    {
+        using var factory =
+            new PaymentsApiFactory(null);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsync(
+            $"/payments/{Guid.Empty}/succeed",
+            content: null);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
+
+    private sealed class PaymentsApiFactory(
+        Payment? payment)
+        : WebApplicationFactory<Program>
+    {
+        public RecordingPaymentRepository Repository { get; } =
+            new(payment);
+
+        protected override void ConfigureWebHost(
+            IWebHostBuilder builder)
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IPaymentRepository>();
+
+                services.AddSingleton<IPaymentRepository>(
+                    Repository);
+            });
+        }
+    }
+
+    public sealed class RecordingPaymentRepository(
+        Payment? payment)
+        : IPaymentRepository
+    {
+        public Payment? UpdatedPayment { get; private set; }
+
+        public Task AddAsync(
+            Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<Payment?> GetByIdAsync(
+            PaymentId id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(payment);
+        }
+
+        public Task UpdateAsync(
+            Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            UpdatedPayment = payment;
+
+            return Task.CompletedTask;
+        }
     }
 }

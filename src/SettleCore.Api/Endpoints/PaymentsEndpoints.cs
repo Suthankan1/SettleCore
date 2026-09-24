@@ -106,6 +106,20 @@ public static class PaymentsEndpoints
                             ? Results.NotFound()
                             : Results.Ok(result);
                     }
+                    catch (ArgumentException exception)
+                    {
+                        var parameterName =
+                            exception.ParamName ?? "paymentId";
+
+                        return Results.ValidationProblem(
+                            new Dictionary<string, string[]>
+                            {
+                                [parameterName] =
+                                [
+                                    exception.Message
+                                ]
+                            });
+                    }
                     catch (InvalidOperationException exception)
                     {
                         return Results.Conflict(
@@ -120,6 +134,8 @@ public static class PaymentsEndpoints
                 StatusCodes.Status200OK)
             .Produces(
                 StatusCodes.Status404NotFound)
+            .ProducesValidationProblem(
+                StatusCodes.Status400BadRequest)
             .Produces(
                 StatusCodes.Status409Conflict);
 
