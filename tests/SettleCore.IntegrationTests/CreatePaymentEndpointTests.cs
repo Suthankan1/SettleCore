@@ -177,5 +177,12 @@ public sealed class CreatePaymentEndpointTests
         {
             throw new NotSupportedException();
         }
+
+        public Task<Payment?> GetByProviderReferenceAsync(
+            ProviderPaymentReference providerReference,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

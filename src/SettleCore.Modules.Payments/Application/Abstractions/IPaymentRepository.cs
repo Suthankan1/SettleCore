@@ -12,6 +12,10 @@ public interface IPaymentRepository
         PaymentId id,
         CancellationToken cancellationToken = default);
 
+    Task<Payment?> GetByProviderReferenceAsync(
+        ProviderPaymentReference providerReference,
+        CancellationToken cancellationToken = default);
+
     Task UpdateAsync(
         Payment payment,
         CancellationToken cancellationToken = default);

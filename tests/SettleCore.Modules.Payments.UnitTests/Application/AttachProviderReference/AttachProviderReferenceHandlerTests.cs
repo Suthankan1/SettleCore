@@ -96,6 +96,13 @@ public sealed class AttachProviderReferenceHandlerTests
                     : null);
         }
 
+        public Task<Payment?> GetByProviderReferenceAsync(
+            ProviderPaymentReference providerReference,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         public Task UpdateAsync(
             Payment payment,
             CancellationToken cancellationToken = default)

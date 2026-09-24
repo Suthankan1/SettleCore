@@ -155,6 +155,13 @@ public sealed class AttachProviderReferenceEndpointTests
 
             return Task.CompletedTask;
         }
+
+        public Task<Payment?> GetByProviderReferenceAsync(
+            ProviderPaymentReference providerReference,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     [Fact]

@@ -9,18 +9,26 @@ public sealed class MarkPaymentSucceededHandlerTests
     [Fact]
     public async Task HandleMarksPaymentSucceededAndPersistsUpdate()
     {
-        var payment = Payment.Create(150.00m, "SGD");
-        var repository = new RecordingPaymentRepository(payment);
-        var handler = new MarkPaymentSucceededHandler(repository);
+        var payment =
+            Payment.Create(150.00m, "SGD");
+
+        var repository =
+            new RecordingPaymentRepository(payment);
+
+        var handler =
+            new MarkPaymentSucceededHandler(repository);
 
         var result = await handler.HandleAsync(
-            new MarkPaymentSucceededCommand(payment.Id.Value));
+            new MarkPaymentSucceededCommand(
+                payment.Id.Value));
 
         var updatedPayment =
-            Assert.IsType<Payment>(repository.UpdatedPayment);
+            Assert.IsType<Payment>(
+                repository.UpdatedPayment);
 
         var succeededPayment =
-            Assert.IsType<MarkPaymentSucceededResult>(result);
+            Assert.IsType<MarkPaymentSucceededResult>(
+                result);
 
         Assert.Equal(
             PaymentStatus.Succeeded,
@@ -38,11 +46,15 @@ public sealed class MarkPaymentSucceededHandlerTests
     [Fact]
     public async Task HandleReturnsNullWhenPaymentDoesNotExist()
     {
-        var repository = new RecordingPaymentRepository(null);
-        var handler = new MarkPaymentSucceededHandler(repository);
+        var repository =
+            new RecordingPaymentRepository(null);
+
+        var handler =
+            new MarkPaymentSucceededHandler(repository);
 
         var result = await handler.HandleAsync(
-            new MarkPaymentSucceededCommand(Guid.NewGuid()));
+            new MarkPaymentSucceededCommand(
+                Guid.NewGuid()));
 
         Assert.Null(result);
         Assert.Null(repository.UpdatedPayment);
@@ -66,6 +78,13 @@ public sealed class MarkPaymentSucceededHandlerTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(payment);
+        }
+
+        public Task<Payment?> GetByProviderReferenceAsync(
+            ProviderPaymentReference providerReference,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
 
         public Task UpdateAsync(

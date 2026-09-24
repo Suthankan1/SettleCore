@@ -9,9 +9,15 @@ public sealed class GetPaymentByIdHandlerTests
     [Fact]
     public async Task HandleReturnsPaymentWhenItExists()
     {
-        var payment = Payment.Create(99.90m, "sgd");
-        var repository = new StubPaymentRepository(payment);
-        var handler = new GetPaymentByIdHandler(repository);
+        var payment = Payment.Create(
+            99.90m,
+            "sgd");
+
+        var repository =
+            new StubPaymentRepository(payment);
+
+        var handler =
+            new GetPaymentByIdHandler(repository);
 
         var result = await handler.HandleAsync(
             new GetPaymentByIdQuery(payment.Id.Value));
@@ -39,39 +45,16 @@ public sealed class GetPaymentByIdHandlerTests
     [Fact]
     public async Task HandleReturnsNullWhenPaymentDoesNotExist()
     {
-        var repository = new StubPaymentRepository(null);
-        var handler = new GetPaymentByIdHandler(repository);
+        var repository =
+            new StubPaymentRepository(null);
+
+        var handler =
+            new GetPaymentByIdHandler(repository);
 
         var result = await handler.HandleAsync(
             new GetPaymentByIdQuery(Guid.NewGuid()));
 
         Assert.Null(result);
-    }
-
-    private sealed class StubPaymentRepository(
-        Payment? payment)
-        : IPaymentRepository
-    {
-        public Task AddAsync(
-            Payment payment,
-            CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<Payment?> GetByIdAsync(
-            PaymentId id,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(payment);
-        }
-
-        public Task UpdateAsync(
-            Payment payment,
-            CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
     }
 
     [Fact]
@@ -105,5 +88,38 @@ public sealed class GetPaymentByIdHandlerTests
         Assert.Equal(
             "pi_3ABC123",
             found.ProviderReference);
+    }
+
+    private sealed class StubPaymentRepository(
+        Payment? payment)
+        : IPaymentRepository
+    {
+        public Task AddAsync(
+            Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<Payment?> GetByIdAsync(
+            PaymentId id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(payment);
+        }
+
+        public Task<Payment?> GetByProviderReferenceAsync(
+            ProviderPaymentReference providerReference,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task UpdateAsync(
+            Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 }
