@@ -4,7 +4,7 @@ using SettleCore.Modules.Payments.Domain;
 namespace SettleCore.Modules.Payments.Application.GetPaymentById;
 
 public sealed class GetPaymentByIdHandler(
-    IPaymentRepository paymentRepository)
+    IPaymentRepository repository)
 {
     public async Task<GetPaymentByIdResult?> HandleAsync(
         GetPaymentByIdQuery query,
@@ -12,9 +12,10 @@ public sealed class GetPaymentByIdHandler(
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var paymentId = PaymentId.From(query.PaymentId);
+        var paymentId =
+            PaymentId.From(query.PaymentId);
 
-        var payment = await paymentRepository.GetByIdAsync(
+        var payment = await repository.GetByIdAsync(
             paymentId,
             cancellationToken);
 
@@ -27,6 +28,8 @@ public sealed class GetPaymentByIdHandler(
             payment.Id.Value,
             payment.Amount,
             payment.Currency,
-            payment.Status.ToString());
+            payment.Status.ToString(),
+            payment.ProviderReference?.Provider,
+            payment.ProviderReference?.Reference);
     }
 }

@@ -73,4 +73,37 @@ public sealed class GetPaymentByIdHandlerTests
             throw new NotSupportedException();
         }
     }
+
+    [Fact]
+    public async Task HandleAsyncReturnsProviderReferenceWhenAttached()
+    {
+        var payment = Payment.Create(
+            100.00m,
+            "SGD");
+
+        payment.AttachProviderReference(
+            ProviderPaymentReference.Create(
+                "stripe",
+                "pi_3ABC123"));
+
+        var repository =
+            new StubPaymentRepository(payment);
+
+        var handler =
+            new GetPaymentByIdHandler(repository);
+
+        var result = await handler.HandleAsync(
+            new GetPaymentByIdQuery(payment.Id.Value));
+
+        var found =
+            Assert.IsType<GetPaymentByIdResult>(result);
+
+        Assert.Equal(
+            "stripe",
+            found.Provider);
+
+        Assert.Equal(
+            "pi_3ABC123",
+            found.ProviderReference);
+    }
 }
