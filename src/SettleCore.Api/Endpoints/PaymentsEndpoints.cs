@@ -1,3 +1,4 @@
+using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.CreatePayment;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
@@ -139,6 +140,31 @@ public static class PaymentsEndpoints
             .Produces(
                 StatusCodes.Status409Conflict);
 
+        endpoints.MapPost(
+                "/payments/{paymentId:guid}/provider-reference",
+                async Task<IResult> (
+                    Guid paymentId,
+                    AttachProviderReferenceRequest request,
+                    AttachProviderReferenceHandler handler,
+                    CancellationToken cancellationToken) =>
+                {
+                    var result = await handler.HandleAsync(
+                        new AttachProviderReferenceCommand(
+                            paymentId,
+                            request.Provider,
+                            request.Reference),
+                        cancellationToken);
+
+                    return result is null
+                        ? Results.NotFound()
+                        : Results.Ok(result);
+                })
+            .WithName("AttachProviderReference")
+            .Produces<AttachProviderReferenceResult>(
+                StatusCodes.Status200OK)
+            .Produces(
+                StatusCodes.Status404NotFound);
+
         return endpoints;
     }
 }
@@ -146,3 +172,7 @@ public static class PaymentsEndpoints
 public sealed record CreatePaymentRequest(
     decimal Amount,
     string Currency);
+
+public sealed record AttachProviderReferenceRequest(
+    string Provider,
+    string Reference);
