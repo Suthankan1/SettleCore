@@ -148,22 +148,41 @@ public static class PaymentsEndpoints
                     AttachProviderReferenceHandler handler,
                     CancellationToken cancellationToken) =>
                 {
-                    var result = await handler.HandleAsync(
-                        new AttachProviderReferenceCommand(
-                            paymentId,
-                            request.Provider,
-                            request.Reference),
-                        cancellationToken);
+                    try
+                    {
+                        var result = await handler.HandleAsync(
+                            new AttachProviderReferenceCommand(
+                                paymentId,
+                                request.Provider,
+                                request.Reference),
+                            cancellationToken);
 
-                    return result is null
-                        ? Results.NotFound()
-                        : Results.Ok(result);
+                        return result is null
+                            ? Results.NotFound()
+                            : Results.Ok(result);
+                    }
+                    catch (ArgumentException exception)
+                    {
+                        var parameterName =
+                            exception.ParamName ?? "providerReference";
+
+                        return Results.ValidationProblem(
+                            new Dictionary<string, string[]>
+                            {
+                                [parameterName] =
+                                [
+                                    exception.Message
+                                ]
+                            });
+                    }
                 })
             .WithName("AttachProviderReference")
             .Produces<AttachProviderReferenceResult>(
                 StatusCodes.Status200OK)
             .Produces(
-                StatusCodes.Status404NotFound);
+                StatusCodes.Status404NotFound)
+            .ProducesValidationProblem(
+                StatusCodes.Status400BadRequest);
 
         return endpoints;
     }

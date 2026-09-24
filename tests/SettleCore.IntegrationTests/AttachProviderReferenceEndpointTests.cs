@@ -156,4 +156,74 @@ public sealed class AttachProviderReferenceEndpointTests
             return Task.CompletedTask;
         }
     }
+
+    [Fact]
+    public async Task PostProviderReferenceReturnsBadRequestForBlankProvider()
+    {
+        var payment = Payment.Create(
+            100.00m,
+            "SGD");
+
+        var repository =
+            new RecordingPaymentRepository(payment);
+
+        using var factory =
+            new PaymentsApiFactory(repository);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsJsonAsync(
+            $"/payments/{payment.Id.Value}/provider-reference",
+            new
+            {
+                provider = " ",
+                reference = "pi_3ABC123"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        Assert.Null(repository.UpdatedPayment);
+    }
+
+    [Fact]
+    public async Task PostProviderReferenceReturnsBadRequestForBlankReference()
+    {
+        var payment = Payment.Create(
+            100.00m,
+            "SGD");
+
+        var repository =
+            new RecordingPaymentRepository(payment);
+
+        using var factory =
+            new PaymentsApiFactory(repository);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsJsonAsync(
+            $"/payments/{payment.Id.Value}/provider-reference",
+            new
+            {
+                provider = "stripe",
+                reference = " "
+            });
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        Assert.Null(repository.UpdatedPayment);
+    }
 }
