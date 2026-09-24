@@ -35,8 +35,21 @@ public sealed class MarkPaymentSucceededHandlerTests
             succeededPayment.Status);
     }
 
+    [Fact]
+    public async Task HandleReturnsNullWhenPaymentDoesNotExist()
+    {
+        var repository = new RecordingPaymentRepository(null);
+        var handler = new MarkPaymentSucceededHandler(repository);
+
+        var result = await handler.HandleAsync(
+            new MarkPaymentSucceededCommand(Guid.NewGuid()));
+
+        Assert.Null(result);
+        Assert.Null(repository.UpdatedPayment);
+    }
+
     private sealed class RecordingPaymentRepository(
-        Payment payment)
+        Payment? payment)
         : IPaymentRepository
     {
         public Payment? UpdatedPayment { get; private set; }
@@ -52,7 +65,7 @@ public sealed class MarkPaymentSucceededHandlerTests
             PaymentId id,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<Payment?>(payment);
+            return Task.FromResult(payment);
         }
 
         public Task UpdateAsync(
