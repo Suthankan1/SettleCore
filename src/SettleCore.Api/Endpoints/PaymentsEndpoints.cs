@@ -1,5 +1,6 @@
 using SettleCore.Modules.Payments.Application.CreatePayment;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
+using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 
 namespace SettleCore.Api.Endpoints;
 
@@ -87,6 +88,27 @@ public static class PaymentsEndpoints
                 StatusCodes.Status404NotFound)
             .ProducesValidationProblem(
                 StatusCodes.Status400BadRequest);
+
+        endpoints.MapPost(
+                "/payments/{paymentId:guid}/succeed",
+                async Task<IResult> (
+                    Guid paymentId,
+                    MarkPaymentSucceededHandler handler,
+                    CancellationToken cancellationToken) =>
+                {
+                    var result = await handler.HandleAsync(
+                        new MarkPaymentSucceededCommand(paymentId),
+                        cancellationToken);
+
+                    return result is null
+                        ? Results.NotFound()
+                        : Results.Ok(result);
+                })
+            .WithName("MarkPaymentSucceeded")
+            .Produces<MarkPaymentSucceededResult>(
+                StatusCodes.Status200OK)
+            .Produces(
+                StatusCodes.Status404NotFound);
 
         return endpoints;
     }
