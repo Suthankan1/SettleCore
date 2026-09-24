@@ -111,4 +111,14 @@ public sealed class PaymentTests
 
         Assert.Equal("id", exception.ParamName);
     }
+
+    [Fact]
+    public void MarkSucceededChangesStatusFromPendingToSucceeded()
+    {
+        var payment = Payment.Create(100.00m, "SGD");
+
+        payment.MarkSucceeded();
+
+        Assert.Equal(PaymentStatus.Succeeded, payment.Status);
+    }
 }

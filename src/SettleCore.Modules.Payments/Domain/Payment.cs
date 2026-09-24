@@ -20,7 +20,7 @@ public sealed class Payment
 
     public string Currency { get; }
 
-    public PaymentStatus Status { get; }
+    public PaymentStatus Status { get; private set; }
 
     public static Payment Create(decimal amount, string currency)
     {
@@ -55,6 +55,11 @@ public sealed class Payment
             amount,
             normalizedCurrency,
             status);
+    }
+
+    public void MarkSucceeded()
+    {
+        Status = PaymentStatus.Succeeded;
     }
 
     private static void ValidateAmount(decimal amount)
