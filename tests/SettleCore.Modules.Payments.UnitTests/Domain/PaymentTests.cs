@@ -121,4 +121,19 @@ public sealed class PaymentTests
 
         Assert.Equal(PaymentStatus.Succeeded, payment.Status);
     }
+
+    [Fact]
+    public void MarkSucceededWhenAlreadySucceededThrows()
+    {
+        var payment = Payment.Create(100.00m, "SGD");
+
+        payment.MarkSucceeded();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            payment.MarkSucceeded);
+
+        Assert.Equal(
+            "Payment is already succeeded.",
+            exception.Message);
+    }
 }

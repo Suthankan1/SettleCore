@@ -59,6 +59,12 @@ public sealed class Payment
 
     public void MarkSucceeded()
     {
+        if (Status == PaymentStatus.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "Payment is already succeeded.");
+        }
+
         Status = PaymentStatus.Succeeded;
     }
 
