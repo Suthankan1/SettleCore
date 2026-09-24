@@ -15,19 +15,40 @@ public sealed class CreatePaymentHandlerTests
         var result = await handler.HandleAsync(
             new CreatePaymentCommand(125.50m, "sgd"));
 
-        var persistedPayment = Assert.IsType<Payment>(repository.AddedPayment);
+        var persistedPayment =
+            Assert.IsType<Payment>(repository.AddedPayment);
 
-        Assert.Equal(persistedPayment.Id.Value, result.PaymentId);
-        Assert.Equal(125.50m, result.Amount);
-        Assert.Equal("SGD", result.Currency);
-        Assert.Equal("Pending", result.Status);
+        Assert.Equal(
+            persistedPayment.Id.Value,
+            result.PaymentId);
 
-        Assert.Equal(result.PaymentId, persistedPayment.Id.Value);
-        Assert.Equal(result.Amount, persistedPayment.Amount);
-        Assert.Equal(result.Currency, persistedPayment.Currency);
+        Assert.Equal(
+            125.50m,
+            result.Amount);
+
+        Assert.Equal(
+            "SGD",
+            result.Currency);
+
+        Assert.Equal(
+            "Pending",
+            result.Status);
+
+        Assert.Equal(
+            result.PaymentId,
+            persistedPayment.Id.Value);
+
+        Assert.Equal(
+            result.Amount,
+            persistedPayment.Amount);
+
+        Assert.Equal(
+            result.Currency,
+            persistedPayment.Currency);
     }
 
-    private sealed class RecordingPaymentRepository : IPaymentRepository
+    private sealed class RecordingPaymentRepository
+        : IPaymentRepository
     {
         public Payment? AddedPayment { get; private set; }
 
@@ -42,6 +63,13 @@ public sealed class CreatePaymentHandlerTests
 
         public Task<Payment?> GetByIdAsync(
             PaymentId id,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task UpdateAsync(
+            Payment payment,
             CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();

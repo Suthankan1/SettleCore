@@ -33,68 +33,44 @@ public sealed class CreatePaymentEndpointTests
                 currency = "sgd"
             });
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Created,
+            response.StatusCode);
 
         var result =
-            await response.Content.ReadFromJsonAsync<CreatePaymentResult>();
+            await response.Content
+                .ReadFromJsonAsync<CreatePaymentResult>();
 
-        var createdPayment = Assert.IsType<CreatePaymentResult>(result);
+        var createdPayment =
+            Assert.IsType<CreatePaymentResult>(result);
 
-        Assert.NotEqual(Guid.Empty, createdPayment.PaymentId);
-        Assert.Equal(125.50m, createdPayment.Amount);
-        Assert.Equal("SGD", createdPayment.Currency);
-        Assert.Equal("Pending", createdPayment.Status);
+        Assert.NotEqual(
+            Guid.Empty,
+            createdPayment.PaymentId);
+
+        Assert.Equal(
+            125.50m,
+            createdPayment.Amount);
+
+        Assert.Equal(
+            "SGD",
+            createdPayment.Currency);
+
+        Assert.Equal(
+            "Pending",
+            createdPayment.Status);
 
         Assert.Equal(
             $"/payments/{createdPayment.PaymentId}",
             response.Headers.Location?.OriginalString);
 
         var persistedPayment =
-            Assert.IsType<Payment>(factory.Repository.AddedPayment);
+            Assert.IsType<Payment>(
+                factory.Repository.AddedPayment);
 
         Assert.Equal(
             createdPayment.PaymentId,
             persistedPayment.Id.Value);
-    }
-
-    private sealed class PaymentsApiFactory
-        : WebApplicationFactory<Program>
-    {
-        public RecordingPaymentRepository Repository { get; } = new();
-
-        protected override void ConfigureWebHost(
-            IWebHostBuilder builder)
-        {
-            builder.ConfigureTestServices(services =>
-            {
-                services.RemoveAll<IPaymentRepository>();
-
-                services.AddSingleton<IPaymentRepository>(
-                    Repository);
-            });
-        }
-    }
-
-    public sealed class RecordingPaymentRepository
-        : IPaymentRepository
-    {
-        public Payment? AddedPayment { get; private set; }
-
-        public Task AddAsync(
-            Payment payment,
-            CancellationToken cancellationToken = default)
-        {
-            AddedPayment = payment;
-
-            return Task.CompletedTask;
-        }
-
-        public Task<Payment?> GetByIdAsync(
-            PaymentId id,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult<Payment?>(null);
-        }
     }
 
     [Fact]
@@ -153,5 +129,53 @@ public sealed class CreatePaymentEndpointTests
             response.StatusCode);
 
         Assert.Null(factory.Repository.AddedPayment);
+    }
+
+    private sealed class PaymentsApiFactory
+        : WebApplicationFactory<Program>
+    {
+        public RecordingPaymentRepository Repository { get; } =
+            new();
+
+        protected override void ConfigureWebHost(
+            IWebHostBuilder builder)
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IPaymentRepository>();
+
+                services.AddSingleton<IPaymentRepository>(
+                    Repository);
+            });
+        }
+    }
+
+    public sealed class RecordingPaymentRepository
+        : IPaymentRepository
+    {
+        public Payment? AddedPayment { get; private set; }
+
+        public Task AddAsync(
+            Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            AddedPayment = payment;
+
+            return Task.CompletedTask;
+        }
+
+        public Task<Payment?> GetByIdAsync(
+            PaymentId id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<Payment?>(null);
+        }
+
+        public Task UpdateAsync(
+            Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

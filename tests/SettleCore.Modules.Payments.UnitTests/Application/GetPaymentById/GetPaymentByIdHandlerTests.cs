@@ -16,12 +16,24 @@ public sealed class GetPaymentByIdHandlerTests
         var result = await handler.HandleAsync(
             new GetPaymentByIdQuery(payment.Id.Value));
 
-        var foundPayment = Assert.IsType<GetPaymentByIdResult>(result);
+        var foundPayment =
+            Assert.IsType<GetPaymentByIdResult>(result);
 
-        Assert.Equal(payment.Id.Value, foundPayment.PaymentId);
-        Assert.Equal(99.90m, foundPayment.Amount);
-        Assert.Equal("SGD", foundPayment.Currency);
-        Assert.Equal("Pending", foundPayment.Status);
+        Assert.Equal(
+            payment.Id.Value,
+            foundPayment.PaymentId);
+
+        Assert.Equal(
+            99.90m,
+            foundPayment.Amount);
+
+        Assert.Equal(
+            "SGD",
+            foundPayment.Currency);
+
+        Assert.Equal(
+            "Pending",
+            foundPayment.Status);
     }
 
     [Fact]
@@ -36,7 +48,8 @@ public sealed class GetPaymentByIdHandlerTests
         Assert.Null(result);
     }
 
-    private sealed class StubPaymentRepository(Payment? payment)
+    private sealed class StubPaymentRepository(
+        Payment? payment)
         : IPaymentRepository
     {
         public Task AddAsync(
@@ -51,6 +64,13 @@ public sealed class GetPaymentByIdHandlerTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(payment);
+        }
+
+        public Task UpdateAsync(
+            Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }

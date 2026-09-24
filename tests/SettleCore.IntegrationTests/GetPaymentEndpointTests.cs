@@ -36,7 +36,8 @@ public sealed class GetPaymentEndpointTests
             response.StatusCode);
 
         var result =
-            await response.Content.ReadFromJsonAsync<GetPaymentByIdResult>();
+            await response.Content
+                .ReadFromJsonAsync<GetPaymentByIdResult>();
 
         var foundPayment =
             Assert.IsType<GetPaymentByIdResult>(result);
@@ -133,6 +134,13 @@ public sealed class GetPaymentEndpointTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(payment);
+        }
+
+        public Task UpdateAsync(
+            Payment payment,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }

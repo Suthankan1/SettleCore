@@ -13,8 +13,12 @@ public sealed class EfPaymentRepository(PaymentsDbContext dbContext)
     {
         ArgumentNullException.ThrowIfNull(payment);
 
-        await dbContext.Payments.AddAsync(payment, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.Payments.AddAsync(
+            payment,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(
+            cancellationToken);
     }
 
     public Task<Payment?> GetByIdAsync(
@@ -23,6 +27,18 @@ public sealed class EfPaymentRepository(PaymentsDbContext dbContext)
     {
         return dbContext.Payments.SingleOrDefaultAsync(
             payment => payment.Id == id,
+            cancellationToken);
+    }
+
+    public async Task UpdateAsync(
+        Payment payment,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+
+        dbContext.Payments.Update(payment);
+
+        await dbContext.SaveChangesAsync(
             cancellationToken);
     }
 }
