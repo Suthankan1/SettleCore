@@ -96,19 +96,32 @@ public static class PaymentsEndpoints
                     MarkPaymentSucceededHandler handler,
                     CancellationToken cancellationToken) =>
                 {
-                    var result = await handler.HandleAsync(
-                        new MarkPaymentSucceededCommand(paymentId),
-                        cancellationToken);
+                    try
+                    {
+                        var result = await handler.HandleAsync(
+                            new MarkPaymentSucceededCommand(paymentId),
+                            cancellationToken);
 
-                    return result is null
-                        ? Results.NotFound()
-                        : Results.Ok(result);
+                        return result is null
+                            ? Results.NotFound()
+                            : Results.Ok(result);
+                    }
+                    catch (InvalidOperationException exception)
+                    {
+                        return Results.Conflict(
+                            new
+                            {
+                                error = exception.Message
+                            });
+                    }
                 })
             .WithName("MarkPaymentSucceeded")
             .Produces<MarkPaymentSucceededResult>(
                 StatusCodes.Status200OK)
             .Produces(
-                StatusCodes.Status404NotFound);
+                StatusCodes.Status404NotFound)
+            .Produces(
+                StatusCodes.Status409Conflict);
 
         return endpoints;
     }

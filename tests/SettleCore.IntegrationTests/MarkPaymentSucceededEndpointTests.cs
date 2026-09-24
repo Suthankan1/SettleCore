@@ -117,4 +117,29 @@ public sealed class MarkPaymentSucceededEndpointTests
             return Task.CompletedTask;
         }
     }
+
+    [Fact]
+    public async Task PostSucceedWhenPaymentAlreadySucceededReturnsConflict()
+    {
+        var payment = Payment.Create(200.00m, "SGD");
+        payment.MarkSucceeded();
+
+        using var factory =
+            new PaymentsApiFactory(payment);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsync(
+            $"/payments/{payment.Id.Value}/succeed",
+            content: null);
+
+        Assert.Equal(
+            HttpStatusCode.Conflict,
+            response.StatusCode);
+    }
 }
