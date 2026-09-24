@@ -76,6 +76,37 @@ public sealed class AttachProviderReferenceEndpointTests
             providerReference.Reference);
     }
 
+    [Fact]
+    public async Task PostProviderReferenceReturnsNotFoundWhenPaymentDoesNotExist()
+    {
+        var repository =
+            new RecordingPaymentRepository(payment: null);
+
+        using var factory =
+            new PaymentsApiFactory(repository);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsJsonAsync(
+            $"/payments/{Guid.NewGuid()}/provider-reference",
+            new
+            {
+                provider = "stripe",
+                reference = "pi_missing"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+
+        Assert.Null(repository.UpdatedPayment);
+    }
+
     private sealed class PaymentsApiFactory(
         IPaymentRepository repository)
         : WebApplicationFactory<Program>
@@ -93,7 +124,7 @@ public sealed class AttachProviderReferenceEndpointTests
     }
 
     private sealed class RecordingPaymentRepository(
-        Payment payment)
+        Payment? payment)
         : IPaymentRepository
     {
         public Payment? UpdatedPayment { get; private set; }
@@ -110,6 +141,7 @@ public sealed class AttachProviderReferenceEndpointTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<Payment?>(
+                payment is not null &&
                 id == payment.Id
                     ? payment
                     : null);
