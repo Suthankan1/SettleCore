@@ -33,6 +33,16 @@ public sealed class EfPaymentRepository(
             cancellationToken);
     }
 
+    public Task<Payment?> GetByProviderReferenceAsync(
+        ProviderPaymentReference providerReference,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.Payments.SingleOrDefaultAsync(
+            payment =>
+                payment.ProviderReference == providerReference,
+            cancellationToken);
+    }
+
     public async Task UpdateAsync(
         Payment payment,
         CancellationToken cancellationToken = default)
@@ -48,11 +58,11 @@ public sealed class EfPaymentRepository(
         }
         catch (DbUpdateException exception)
             when (exception.InnerException is PostgresException
-                  {
-                      SqlState: PostgresErrorCodes.UniqueViolation,
-                      ConstraintName:
-                      "ux_payments_provider_payment_reference"
-                  })
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName:
+                    "ux_payments_provider_payment_reference"
+            })
         {
             throw new ProviderPaymentReferenceConflictException(
                 exception);
