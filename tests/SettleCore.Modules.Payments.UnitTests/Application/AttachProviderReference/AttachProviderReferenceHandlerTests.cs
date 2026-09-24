@@ -53,8 +53,27 @@ public sealed class AttachProviderReferenceHandlerTests
             providerReference.Reference);
     }
 
+    [Fact]
+    public async Task HandleAsyncReturnsNullWhenPaymentDoesNotExist()
+    {
+        var repository =
+            new RecordingPaymentRepository(payment: null);
+
+        var handler =
+            new AttachProviderReferenceHandler(repository);
+
+        var result = await handler.HandleAsync(
+            new AttachProviderReferenceCommand(
+                Guid.NewGuid(),
+                "stripe",
+                "pi_missing"));
+
+        Assert.Null(result);
+        Assert.Null(repository.UpdatedPayment);
+    }
+
     private sealed class RecordingPaymentRepository(
-        Payment payment)
+        Payment? payment)
         : IPaymentRepository
     {
         public Payment? UpdatedPayment { get; private set; }
@@ -71,6 +90,7 @@ public sealed class AttachProviderReferenceHandlerTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<Payment?>(
+                payment is not null &&
                 id == payment.Id
                     ? payment
                     : null);
