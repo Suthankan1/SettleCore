@@ -96,4 +96,62 @@ public sealed class CreatePaymentEndpointTests
             return Task.FromResult<Payment?>(null);
         }
     }
+
+    [Fact]
+    public async Task PostPaymentsWithNonPositiveAmountReturnsBadRequest()
+    {
+        using var factory = new PaymentsApiFactory();
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsJsonAsync(
+            "/payments",
+            new
+            {
+                amount = 0m,
+                currency = "SGD"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        Assert.Null(factory.Repository.AddedPayment);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("SG")]
+    [InlineData("123")]
+    public async Task PostPaymentsWithInvalidCurrencyReturnsBadRequest(
+        string currency)
+    {
+        using var factory = new PaymentsApiFactory();
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsJsonAsync(
+            "/payments",
+            new
+            {
+                amount = 100m,
+                currency
+            });
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        Assert.Null(factory.Repository.AddedPayment);
+    }
 }

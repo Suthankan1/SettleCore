@@ -9,24 +9,43 @@ public static class PaymentsEndpoints
     {
         endpoints.MapPost(
                 "/payments",
-                async (
+                async Task<IResult> (
                     CreatePaymentRequest request,
                     CreatePaymentHandler handler,
                     CancellationToken cancellationToken) =>
                 {
-                    var result = await handler.HandleAsync(
-                        new CreatePaymentCommand(
-                            request.Amount,
-                            request.Currency),
-                        cancellationToken);
+                    try
+                    {
+                        var result = await handler.HandleAsync(
+                            new CreatePaymentCommand(
+                                request.Amount,
+                                request.Currency),
+                            cancellationToken);
 
-                    return Results.Created(
-                        $"/payments/{result.PaymentId}",
-                        result);
+                        return Results.Created(
+                            $"/payments/{result.PaymentId}",
+                            result);
+                    }
+                    catch (ArgumentException exception)
+                    {
+                        var parameterName =
+                            exception.ParamName ?? "payment";
+
+                        return Results.ValidationProblem(
+                            new Dictionary<string, string[]>
+                            {
+                                [parameterName] =
+                                [
+                                    exception.Message
+                                ]
+                            });
+                    }
                 })
             .WithName("CreatePayment")
             .Produces<CreatePaymentResult>(
-                StatusCodes.Status201Created);
+                StatusCodes.Status201Created)
+            .ProducesValidationProblem(
+                StatusCodes.Status400BadRequest);
 
         return endpoints;
     }
