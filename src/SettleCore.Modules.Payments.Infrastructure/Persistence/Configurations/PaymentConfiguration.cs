@@ -33,5 +33,21 @@ public sealed class PaymentConfiguration
             .HasConversion<string>()
             .HasMaxLength(32)
             .IsRequired();
+
+        builder.ComplexProperty(
+            payment => payment.ProviderReference,
+            providerReference =>
+            {
+                providerReference.HasField(
+                    "_providerReference");
+
+                providerReference
+                    .Property(reference => reference.Provider)
+                    .HasColumnName("provider");
+
+                providerReference
+                    .Property(reference => reference.Reference)
+                    .HasColumnName("provider_payment_reference");
+            });
     }
 }
