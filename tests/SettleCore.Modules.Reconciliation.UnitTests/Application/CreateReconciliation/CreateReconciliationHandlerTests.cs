@@ -73,4 +73,22 @@ public sealed class CreateReconciliationHandlerTests
         Assert.Equal("SGD", repository.AddedRecord.ExpectedCurrency);
         Assert.Equal("SGD", repository.AddedRecord.ActualCurrency);
     }
+
+    [Fact]
+    public async Task HandleRejectsInvalidCurrencyWithoutPersisting()
+    {
+        var repository = new RecordingReconciliationRepository();
+        var handler = new CreateReconciliationHandler(repository);
+
+        var command = new CreateReconciliationCommand(
+            ExpectedAmount: 100.00m,
+            ExpectedCurrency: " ",
+            ActualAmount: 100.00m,
+            ActualCurrency: "SGD");
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.HandleAsync(command));
+
+        Assert.Null(repository.AddedRecord);
+    }
 }
