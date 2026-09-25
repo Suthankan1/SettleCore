@@ -148,5 +148,13 @@ public sealed class CreateReconciliationEndpointTests
             AddedRecord = record;
             return Task.CompletedTask;
         }
+
+        public Task<ReconciliationRecord?> GetByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                AddedRecord?.Id == id ? AddedRecord : null);
+        }
     }
 }

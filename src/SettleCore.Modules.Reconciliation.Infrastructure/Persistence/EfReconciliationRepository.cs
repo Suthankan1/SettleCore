@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SettleCore.Modules.Reconciliation.Application;
 using SettleCore.Modules.Reconciliation.Domain;
 
@@ -14,5 +15,16 @@ public sealed class EfReconciliationRepository(
         dbContext.ReconciliationRecords.Add(record);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<ReconciliationRecord?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.ReconciliationRecords
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                record => record.Id == id,
+                cancellationToken);
     }
 }
