@@ -9,10 +9,14 @@ public static class ReconciliationComparison
         string actualCurrency)
     {
         var normalizedExpectedCurrency =
-            expectedCurrency.ToUpperInvariant();
+            ValidateAndNormalizeCurrency(
+                expectedCurrency,
+                nameof(expectedCurrency));
 
         var normalizedActualCurrency =
-            actualCurrency.ToUpperInvariant();
+            ValidateAndNormalizeCurrency(
+                actualCurrency,
+                nameof(actualCurrency));
 
         if (expectedAmount != actualAmount &&
             normalizedExpectedCurrency != normalizedActualCurrency)
@@ -53,5 +57,21 @@ public static class ReconciliationComparison
             actualAmount,
             normalizedExpectedCurrency,
             normalizedActualCurrency);
+    }
+
+    private static string ValidateAndNormalizeCurrency(
+        string currency,
+        string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(currency);
+
+        if (string.IsNullOrWhiteSpace(currency))
+        {
+            throw new ArgumentException(
+                "Reconciliation currency must not be blank.",
+                parameterName);
+        }
+
+        return currency.ToUpperInvariant();
     }
 }
