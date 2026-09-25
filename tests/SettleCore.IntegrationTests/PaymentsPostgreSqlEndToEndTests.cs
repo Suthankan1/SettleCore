@@ -11,6 +11,7 @@ using SettleCore.Modules.Payments.Application.GetPaymentById;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
+using SettleCore.Modules.Payments.Application.GetPaymentByProviderReference;
 
 namespace SettleCore.IntegrationTests;
 
@@ -411,5 +412,102 @@ public sealed class PaymentsPostgreSqlEndToEndTests
         Assert.Equal(
             "pi_roundtrip",
             fetched.ProviderReference);
+    }
+
+    [Fact]
+    public async Task LookupByProviderReferenceReturnsPersistedPayment()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine")
+            .WithDatabase("settlecore_test")
+            .WithUsername("settlecore")
+            .WithPassword("settlecore")
+            .Build();
+
+        await postgres.StartAsync();
+
+        using var factory =
+            new PaymentsApiFactory(postgres.GetConnectionString());
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext =
+                scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+
+            await dbContext.Database.MigrateAsync();
+        }
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/payments",
+            new
+            {
+                amount = 425.50m,
+                currency = "SGD"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode);
+
+        var created =
+            Assert.IsType<CreatePaymentResult>(
+                await createResponse.Content
+                    .ReadFromJsonAsync<CreatePaymentResult>());
+
+        var attachResponse = await client.PostAsJsonAsync(
+            $"/payments/{created.PaymentId}/provider-reference",
+            new
+            {
+                provider = "stripe",
+                reference = "pi_lookup_e2e"
+            });
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            attachResponse.StatusCode);
+
+        var lookupResponse = await client.GetAsync(
+            "/payments/by-provider-reference" +
+            "?provider=stripe" +
+            "&reference=pi_lookup_e2e");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            lookupResponse.StatusCode);
+
+        var found =
+            Assert.IsType<GetPaymentByProviderReferenceResult>(
+                await lookupResponse.Content
+                    .ReadFromJsonAsync<GetPaymentByProviderReferenceResult>());
+
+        Assert.Equal(
+            created.PaymentId,
+            found.PaymentId);
+
+        Assert.Equal(
+            425.50m,
+            found.Amount);
+
+        Assert.Equal(
+            "SGD",
+            found.Currency);
+
+        Assert.Equal(
+            "Pending",
+            found.Status);
+
+        Assert.Equal(
+            "stripe",
+            found.Provider);
+
+        Assert.Equal(
+            "pi_lookup_e2e",
+            found.ProviderReference);
     }
 }
