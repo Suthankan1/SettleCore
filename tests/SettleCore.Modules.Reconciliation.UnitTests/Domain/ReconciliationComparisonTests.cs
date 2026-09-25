@@ -1,35 +1,62 @@
-namespace SettleCore.Modules.Reconciliation.Domain;
+using SettleCore.Modules.Reconciliation.Domain;
 
-public static class ReconciliationComparison
+namespace SettleCore.Modules.Reconciliation.UnitTests.Domain;
+
+public sealed class ReconciliationComparisonTests
 {
-    public static ReconciliationResult Compare(
-        decimal expectedAmount,
-        string expectedCurrency,
-        decimal actualAmount,
-        string actualCurrency)
+    [Fact]
+    public void CompareReturnsMatchedWhenAmountAndCurrencyMatch()
     {
-        if (expectedAmount != actualAmount &&
-            expectedCurrency == actualCurrency)
-        {
-            return new ReconciliationResult(
-                ReconciliationStatus.AmountMismatch);
-        }
+        var result = ReconciliationComparison.Compare(
+            expectedAmount: 100.00m,
+            expectedCurrency: "SGD",
+            actualAmount: 100.00m,
+            actualCurrency: "SGD");
 
-        if (expectedAmount == actualAmount &&
-            expectedCurrency != actualCurrency)
-        {
-            return new ReconciliationResult(
-                ReconciliationStatus.CurrencyMismatch);
-        }
+        Assert.Equal(
+            ReconciliationStatus.Matched,
+            result.Status);
+    }
 
-        if (expectedAmount == actualAmount &&
-            expectedCurrency == actualCurrency)
-        {
-            return new ReconciliationResult(
-                ReconciliationStatus.Matched);
-        }
+    [Fact]
+    public void CompareReturnsAmountMismatchWhenAmountsDiffer()
+    {
+        var result = ReconciliationComparison.Compare(
+            expectedAmount: 100.00m,
+            expectedCurrency: "SGD",
+            actualAmount: 95.00m,
+            actualCurrency: "SGD");
 
-        throw new InvalidOperationException(
-            "Combined reconciliation mismatch behavior is not implemented yet.");
+        Assert.Equal(
+            ReconciliationStatus.AmountMismatch,
+            result.Status);
+    }
+
+    [Fact]
+    public void CompareReturnsCurrencyMismatchWhenCurrenciesDiffer()
+    {
+        var result = ReconciliationComparison.Compare(
+            expectedAmount: 100.00m,
+            expectedCurrency: "SGD",
+            actualAmount: 100.00m,
+            actualCurrency: "USD");
+
+        Assert.Equal(
+            ReconciliationStatus.CurrencyMismatch,
+            result.Status);
+    }
+
+    [Fact]
+    public void CompareReturnsMismatchWhenAmountAndCurrencyDiffer()
+    {
+        var result = ReconciliationComparison.Compare(
+            expectedAmount: 100.00m,
+            expectedCurrency: "SGD",
+            actualAmount: 95.00m,
+            actualCurrency: "USD");
+
+        Assert.Equal(
+            ReconciliationStatus.Mismatch,
+            result.Status);
     }
 }

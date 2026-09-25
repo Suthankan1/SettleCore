@@ -4,5 +4,6 @@ public enum ReconciliationStatus
 {
     Matched,
     AmountMismatch,
-    CurrencyMismatch
+    CurrencyMismatch,
+    Mismatch
 }

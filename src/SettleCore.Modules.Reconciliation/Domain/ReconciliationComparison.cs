@@ -8,14 +8,28 @@ public static class ReconciliationComparison
         decimal actualAmount,
         string actualCurrency)
     {
-        if (expectedAmount == actualAmount &&
+        if (expectedAmount != actualAmount &&
+            expectedCurrency != actualCurrency)
+        {
+            return new ReconciliationResult(
+                ReconciliationStatus.Mismatch);
+        }
+
+        if (expectedAmount != actualAmount &&
             expectedCurrency == actualCurrency)
         {
             return new ReconciliationResult(
-                ReconciliationStatus.Matched);
+                ReconciliationStatus.AmountMismatch);
         }
 
-        throw new InvalidOperationException(
-            "Mismatch reconciliation behavior is not implemented yet.");
+        if (expectedAmount == actualAmount &&
+            expectedCurrency != actualCurrency)
+        {
+            return new ReconciliationResult(
+                ReconciliationStatus.CurrencyMismatch);
+        }
+
+        return new ReconciliationResult(
+            ReconciliationStatus.Matched);
     }
 }
