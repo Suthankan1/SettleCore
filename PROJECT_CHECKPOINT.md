@@ -11,10 +11,13 @@
 - 009.3C: Application query handler returns reconciliation details or null and is registered in DI.
 - 009.3D: `GET /reconciliations/{id}` returns the record or HTTP 404; API tests cover both.
 - 009.3E: Create then GET round-trips through PostgreSQL, with response checked against the persisted row.
+- 010.1A: Ledger domain foundation has immutable entries in minor units and rejects transactions that are not balanced per currency.
 
 ## Next
 
-- Next backend slice: choose ledger/audit foundation after reviewing the current schema and prior project scope.
+- 010.1B: Add ledger account model and enforce account currency and ledger ownership before posting.
+- 010.2: Persist ledger transactions and entries atomically; add PostgreSQL tests, then application and API slices.
+- Later: payment-to-ledger integration, audit trail, provider ingestion, webhooks, workers/outbox/idempotency, observability, deployment, then frontend and polish.
 - Continue backend features in small slices before frontend, deployment, and polish.
 
 ## Verification and repository state
@@ -28,4 +31,5 @@
 - After 009.3C: `dotnet test SettleCore.slnx --nologo -v:q` passed (107 tests).
 - After 009.3D: `dotnet test SettleCore.slnx --nologo -v:q` passed (109 tests).
 - After 009.3E: `dotnet test SettleCore.slnx --nologo -v:q` passed (109 tests).
+- After 010.1A: `dotnet test SettleCore.slnx --nologo -v:q` passed (115 tests).
 - The latest commit and push state should be checked with `git status --short --branch` and `git log -1 --oneline` when resuming.
