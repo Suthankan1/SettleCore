@@ -12,6 +12,7 @@
     <Project Path="tests/SettleCore.IntegrationTests/SettleCore.IntegrationTests.csproj" />
     <Project Path="tests/SettleCore.Modules.Payments.Infrastructure.IntegrationTests/SettleCore.Modules.Payments.Infrastructure.IntegrationTests.csproj" />
     <Project Path="tests/SettleCore.Modules.Payments.UnitTests/SettleCore.Modules.Payments.UnitTests.csproj" />
+    <Project Path="tests/SettleCore.Modules.Ledger.Infrastructure.IntegrationTests/SettleCore.Modules.Ledger.Infrastructure.IntegrationTests.csproj" />
     <Project Path="tests/SettleCore.Modules.Ledger.UnitTests/SettleCore.Modules.Ledger.UnitTests.csproj" />
     <Project Path="tests/SettleCore.Modules.Reconciliation.Infrastructure.IntegrationTests/SettleCore.Modules.Reconciliation.Infrastructure.IntegrationTests.csproj" />
     <Project Path="tests/SettleCore.Modules.Reconciliation.UnitTests/SettleCore.Modules.Reconciliation.UnitTests.csproj" />
