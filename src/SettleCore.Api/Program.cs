@@ -24,6 +24,7 @@ app.UseHttpsRedirection();
 
 app.MapPaymentsEndpoints();
 app.MapReconciliationEndpoints();
+app.MapLedgerEndpoints();
 
 app.MapHealthChecks(
     "/health/live",
