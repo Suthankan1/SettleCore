@@ -8,10 +8,10 @@
 - 009.2D: API integration cases cover all four comparison statuses and currency normalization.
 - 009.3A: API → handler → EF repository → PostgreSQL creation verified through an independent database read.
 - 009.3B: Repository can retrieve a reconciliation by ID or return null for a missing ID; PostgreSQL integration test covers both.
+- 009.3C: Application query handler returns reconciliation details or null and is registered in DI.
 
 ## Next
 
-- 009.3C: Add application query handler for reconciliation retrieval.
 - 009.3D: Expose `GET /reconciliations/{id}` and verify it through PostgreSQL.
 - Continue backend features in small slices before frontend, deployment, and polish.
 
@@ -23,4 +23,5 @@
 - After 009.2D: `dotnet test SettleCore.slnx --nologo -v:q` passed (103 tests).
 - After 009.3A: `dotnet test SettleCore.slnx --nologo -v:q` passed (104 tests).
 - After 009.3B: `dotnet test SettleCore.slnx --nologo -v:q` passed (105 tests).
+- After 009.3C: `dotnet test SettleCore.slnx --nologo -v:q` passed (107 tests).
 - The latest commit and push state should be checked with `git status --short --branch` and `git log -1 --oneline` when resuming.

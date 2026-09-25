@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SettleCore.Modules.Reconciliation.Application;
 using SettleCore.Modules.Reconciliation.Application.CreateReconciliation;
+using SettleCore.Modules.Reconciliation.Application.GetReconciliationById;
 using SettleCore.Modules.Reconciliation.Infrastructure.Persistence;
 
 namespace SettleCore.Modules.Reconciliation.Infrastructure;
@@ -26,6 +27,7 @@ public static class DependencyInjection
             EfReconciliationRepository>();
 
         services.AddScoped<CreateReconciliationHandler>();
+        services.AddScoped<GetReconciliationByIdHandler>();
 
         return services;
     }
