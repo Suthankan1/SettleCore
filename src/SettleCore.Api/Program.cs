@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using SettleCore.Api.Endpoints;
 using SettleCore.Modules.Payments.Infrastructure;
+using SettleCore.Modules.Reconciliation.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddPaymentsModule(builder.Configuration);
+builder.Services.AddReconciliationModule(builder.Configuration);
 
 var app = builder.Build();
 
