@@ -14,7 +14,9 @@ public static class ReconciliationComparison
             return new ReconciliationResult(
                 ReconciliationStatus.Mismatch,
                 expectedAmount,
-                actualAmount);
+                actualAmount,
+                expectedCurrency,
+                actualCurrency);
         }
 
         if (expectedAmount != actualAmount &&
@@ -23,7 +25,9 @@ public static class ReconciliationComparison
             return new ReconciliationResult(
                 ReconciliationStatus.AmountMismatch,
                 expectedAmount,
-                actualAmount);
+                actualAmount,
+                expectedCurrency,
+                actualCurrency);
         }
 
         if (expectedAmount == actualAmount &&
@@ -32,12 +36,16 @@ public static class ReconciliationComparison
             return new ReconciliationResult(
                 ReconciliationStatus.CurrencyMismatch,
                 expectedAmount,
-                actualAmount);
+                actualAmount,
+                expectedCurrency,
+                actualCurrency);
         }
 
         return new ReconciliationResult(
             ReconciliationStatus.Matched,
             expectedAmount,
-            actualAmount);
+            actualAmount,
+            expectedCurrency,
+            actualCurrency);
     }
 }
