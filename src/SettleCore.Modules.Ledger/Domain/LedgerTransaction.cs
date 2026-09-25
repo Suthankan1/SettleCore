@@ -6,19 +6,25 @@ public sealed class LedgerTransaction
 {
     private LedgerTransaction(
         Guid id,
+        Guid ledgerId,
         IReadOnlyList<LedgerEntry> entries)
     {
         Id = id;
+        LedgerId = ledgerId;
         Entries = entries;
     }
 
     public Guid Id { get; }
 
+    public Guid LedgerId { get; }
+
     public IReadOnlyList<LedgerEntry> Entries { get; }
 
     public static LedgerTransaction Post(
         Guid id,
-        IEnumerable<LedgerEntry> entries)
+        Guid ledgerId,
+        IEnumerable<LedgerEntry> entries,
+        IEnumerable<LedgerAccount> accounts)
     {
         if (id == Guid.Empty)
         {
@@ -27,18 +33,68 @@ public sealed class LedgerTransaction
                 nameof(id));
         }
 
+        if (ledgerId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Ledger ID must not be empty.",
+                nameof(ledgerId));
+        }
+
         ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(accounts);
 
-        var snapshot = entries.ToArray();
+        var entrySnapshot = entries.ToArray();
 
-        if (snapshot.Length < 2 || snapshot.Any(entry => entry is null))
+        if (entrySnapshot.Length < 2 ||
+            entrySnapshot.Any(entry => entry is null))
         {
             throw new ArgumentException(
                 "Ledger transaction requires at least two valid entries.",
                 nameof(entries));
         }
 
-        foreach (var currencyEntries in snapshot.GroupBy(
+        var accountSnapshot = accounts.ToArray();
+
+        if (accountSnapshot.Any(account => account is null))
+        {
+            throw new ArgumentException(
+                "Ledger accounts must not contain null values.",
+                nameof(accounts));
+        }
+
+        var accountsById = accountSnapshot.ToDictionary(
+            account => account.Id);
+
+        foreach (var entry in entrySnapshot)
+        {
+            if (!accountsById.TryGetValue(
+                    entry.AccountId,
+                    out var account))
+            {
+                throw new ArgumentException(
+                    $"Ledger account '{entry.AccountId}' was not provided.",
+                    nameof(accounts));
+            }
+
+            if (account.LedgerId != ledgerId)
+            {
+                throw new ArgumentException(
+                    $"Ledger account '{account.Id}' does not belong to ledger '{ledgerId}'.",
+                    nameof(accounts));
+            }
+
+            if (!string.Equals(
+                    account.Currency,
+                    entry.Currency,
+                    StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    $"Ledger entry currency '{entry.Currency}' does not match account currency '{account.Currency}'.",
+                    nameof(entries));
+            }
+        }
+
+        foreach (var currencyEntries in entrySnapshot.GroupBy(
                      entry => entry.Currency,
                      StringComparer.Ordinal))
         {
@@ -65,6 +121,9 @@ public sealed class LedgerTransaction
             }
         }
 
-        return new LedgerTransaction(id, Array.AsReadOnly(snapshot));
+        return new LedgerTransaction(
+            id,
+            ledgerId,
+            Array.AsReadOnly(entrySnapshot));
     }
 }
