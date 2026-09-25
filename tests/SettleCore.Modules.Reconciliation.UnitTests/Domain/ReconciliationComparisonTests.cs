@@ -16,6 +16,13 @@ public static class ReconciliationComparison
         }
 
         if (expectedAmount == actualAmount &&
+            expectedCurrency != actualCurrency)
+        {
+            return new ReconciliationResult(
+                ReconciliationStatus.CurrencyMismatch);
+        }
+
+        if (expectedAmount == actualAmount &&
             expectedCurrency == actualCurrency)
         {
             return new ReconciliationResult(
@@ -23,6 +30,6 @@ public static class ReconciliationComparison
         }
 
         throw new InvalidOperationException(
-            "Currency mismatch reconciliation behavior is not implemented yet.");
+            "Combined reconciliation mismatch behavior is not implemented yet.");
     }
 }
