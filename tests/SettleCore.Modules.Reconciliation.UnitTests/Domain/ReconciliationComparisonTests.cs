@@ -95,4 +95,26 @@ public sealed class ReconciliationComparisonTests
             "USD",
             result.ActualCurrency);
     }
+
+    [Fact]
+    public void CompareTreatsCurrencyCodesCaseInsensitively()
+    {
+        var result = ReconciliationComparison.Compare(
+            expectedAmount: 100.00m,
+            expectedCurrency: "sgd",
+            actualAmount: 100.00m,
+            actualCurrency: "SGD");
+
+        Assert.Equal(
+            ReconciliationStatus.Matched,
+            result.Status);
+
+        Assert.Equal(
+            "SGD",
+            result.ExpectedCurrency);
+
+        Assert.Equal(
+            "SGD",
+            result.ActualCurrency);
+    }
 }

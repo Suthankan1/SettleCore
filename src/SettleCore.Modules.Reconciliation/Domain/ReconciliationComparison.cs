@@ -8,44 +8,50 @@ public static class ReconciliationComparison
         decimal actualAmount,
         string actualCurrency)
     {
+        var normalizedExpectedCurrency =
+            expectedCurrency.ToUpperInvariant();
+
+        var normalizedActualCurrency =
+            actualCurrency.ToUpperInvariant();
+
         if (expectedAmount != actualAmount &&
-            expectedCurrency != actualCurrency)
+            normalizedExpectedCurrency != normalizedActualCurrency)
         {
             return new ReconciliationResult(
                 ReconciliationStatus.Mismatch,
                 expectedAmount,
                 actualAmount,
-                expectedCurrency,
-                actualCurrency);
+                normalizedExpectedCurrency,
+                normalizedActualCurrency);
         }
 
         if (expectedAmount != actualAmount &&
-            expectedCurrency == actualCurrency)
+            normalizedExpectedCurrency == normalizedActualCurrency)
         {
             return new ReconciliationResult(
                 ReconciliationStatus.AmountMismatch,
                 expectedAmount,
                 actualAmount,
-                expectedCurrency,
-                actualCurrency);
+                normalizedExpectedCurrency,
+                normalizedActualCurrency);
         }
 
         if (expectedAmount == actualAmount &&
-            expectedCurrency != actualCurrency)
+            normalizedExpectedCurrency != normalizedActualCurrency)
         {
             return new ReconciliationResult(
                 ReconciliationStatus.CurrencyMismatch,
                 expectedAmount,
                 actualAmount,
-                expectedCurrency,
-                actualCurrency);
+                normalizedExpectedCurrency,
+                normalizedActualCurrency);
         }
 
         return new ReconciliationResult(
             ReconciliationStatus.Matched,
             expectedAmount,
             actualAmount,
-            expectedCurrency,
-            actualCurrency);
+            normalizedExpectedCurrency,
+            normalizedActualCurrency);
     }
 }
