@@ -59,4 +59,22 @@ public sealed class ReconciliationComparisonTests
             ReconciliationStatus.Mismatch,
             result.Status);
     }
+
+    [Fact]
+    public void CompareIncludesAmountDetailsWhenAmountsDiffer()
+    {
+        var result = ReconciliationComparison.Compare(
+            expectedAmount: 100.00m,
+            expectedCurrency: "SGD",
+            actualAmount: 95.00m,
+            actualCurrency: "SGD");
+
+        Assert.Equal(
+            100.00m,
+            result.ExpectedAmount);
+
+        Assert.Equal(
+            95.00m,
+            result.ActualAmount);
+    }
 }

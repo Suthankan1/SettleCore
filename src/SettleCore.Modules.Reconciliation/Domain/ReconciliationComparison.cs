@@ -12,24 +12,32 @@ public static class ReconciliationComparison
             expectedCurrency != actualCurrency)
         {
             return new ReconciliationResult(
-                ReconciliationStatus.Mismatch);
+                ReconciliationStatus.Mismatch,
+                expectedAmount,
+                actualAmount);
         }
 
         if (expectedAmount != actualAmount &&
             expectedCurrency == actualCurrency)
         {
             return new ReconciliationResult(
-                ReconciliationStatus.AmountMismatch);
+                ReconciliationStatus.AmountMismatch,
+                expectedAmount,
+                actualAmount);
         }
 
         if (expectedAmount == actualAmount &&
             expectedCurrency != actualCurrency)
         {
             return new ReconciliationResult(
-                ReconciliationStatus.CurrencyMismatch);
+                ReconciliationStatus.CurrencyMismatch,
+                expectedAmount,
+                actualAmount);
         }
 
         return new ReconciliationResult(
-            ReconciliationStatus.Matched);
+            ReconciliationStatus.Matched,
+            expectedAmount,
+            actualAmount);
     }
 }
