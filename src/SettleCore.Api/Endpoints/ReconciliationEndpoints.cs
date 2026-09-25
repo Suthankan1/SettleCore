@@ -1,0 +1,41 @@
+using SettleCore.Modules.Reconciliation.Application.CreateReconciliation;
+
+namespace SettleCore.Api.Endpoints;
+
+public static class ReconciliationEndpoints
+{
+    public static IEndpointRouteBuilder MapReconciliationEndpoints(
+        this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapPost(
+                "/reconciliations",
+                async Task<IResult> (
+                    CreateReconciliationRequest request,
+                    CreateReconciliationHandler handler,
+                    CancellationToken cancellationToken) =>
+                {
+                    var result = await handler.HandleAsync(
+                        new CreateReconciliationCommand(
+                            request.ExpectedAmount,
+                            request.ExpectedCurrency,
+                            request.ActualAmount,
+                            request.ActualCurrency),
+                        cancellationToken);
+
+                    return Results.Created(
+                        $"/reconciliations/{result.ReconciliationId}",
+                        result);
+                })
+            .WithName("CreateReconciliation")
+            .Produces<CreateReconciliationResult>(
+                StatusCodes.Status201Created);
+
+        return endpoints;
+    }
+}
+
+public sealed record CreateReconciliationRequest(
+    decimal ExpectedAmount,
+    string ExpectedCurrency,
+    decimal ActualAmount,
+    string ActualCurrency);

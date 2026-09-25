@@ -20,6 +20,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapPaymentsEndpoints();
+app.MapReconciliationEndpoints();
 
 app.MapHealthChecks(
     "/health/live",
