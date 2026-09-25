@@ -8,4 +8,11 @@ public sealed class ReconciliationDbContext(
 {
     public DbSet<ReconciliationRecord> ReconciliationRecords =>
         Set<ReconciliationRecord>();
+
+    protected override void OnModelCreating(
+        ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(ReconciliationDbContext).Assembly);
+    }
 }
