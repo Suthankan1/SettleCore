@@ -80,4 +80,30 @@ public sealed class GetPaymentByProviderReferenceHandlerTests
             throw new NotSupportedException();
         }
     }
+
+    [Fact]
+    public async Task HandleAsyncReturnsNullWhenNoPaymentMatches()
+    {
+        var payment = Payment.Create(
+            100.00m,
+            "SGD");
+
+        payment.AttachProviderReference(
+            ProviderPaymentReference.Create(
+                "stripe",
+                "pi_existing"));
+
+        var repository =
+            new StubPaymentRepository(payment);
+
+        var handler =
+            new GetPaymentByProviderReferenceHandler(repository);
+
+        var result = await handler.HandleAsync(
+            new GetPaymentByProviderReferenceQuery(
+                "stripe",
+                "pi_missing"));
+
+        Assert.Null(result);
+    }
 }
