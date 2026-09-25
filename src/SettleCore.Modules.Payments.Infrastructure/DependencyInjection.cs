@@ -8,6 +8,7 @@ using SettleCore.Modules.Payments.Application.GetPaymentById;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
 using SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
+using SettleCore.Modules.Payments.Application.GetPaymentByProviderReference;
 
 namespace SettleCore.Modules.Payments.Infrastructure;
 
@@ -31,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<GetPaymentByIdHandler>();
         services.AddScoped<MarkPaymentSucceededHandler>();
         services.AddScoped<AttachProviderReferenceHandler>();
+        services.AddScoped<GetPaymentByProviderReferenceHandler>();
 
         return services;
     }

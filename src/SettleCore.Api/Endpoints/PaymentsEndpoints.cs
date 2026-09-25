@@ -1,6 +1,7 @@
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.CreatePayment;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
+using SettleCore.Modules.Payments.Application.GetPaymentByProviderReference;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 
 namespace SettleCore.Api.Endpoints;
@@ -49,6 +50,30 @@ public static class PaymentsEndpoints
                 StatusCodes.Status201Created)
             .ProducesValidationProblem(
                 StatusCodes.Status400BadRequest);
+
+        endpoints.MapGet(
+                "/payments/by-provider-reference",
+                async Task<IResult> (
+                    string provider,
+                    string reference,
+                    GetPaymentByProviderReferenceHandler handler,
+                    CancellationToken cancellationToken) =>
+                {
+                    var result = await handler.HandleAsync(
+                        new GetPaymentByProviderReferenceQuery(
+                            provider,
+                            reference),
+                        cancellationToken);
+
+                    return result is null
+                        ? Results.NotFound()
+                        : Results.Ok(result);
+                })
+            .WithName("GetPaymentByProviderReference")
+            .Produces<GetPaymentByProviderReferenceResult>(
+                StatusCodes.Status200OK)
+            .Produces(
+                StatusCodes.Status404NotFound);
 
         endpoints.MapGet(
                 "/payments/{paymentId:guid}",
