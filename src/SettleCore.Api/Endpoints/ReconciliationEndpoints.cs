@@ -1,4 +1,5 @@
 using SettleCore.Modules.Reconciliation.Application.CreateReconciliation;
+using SettleCore.Modules.Reconciliation.Application.GetReconciliationById;
 
 namespace SettleCore.Api.Endpoints;
 
@@ -45,6 +46,26 @@ public static class ReconciliationEndpoints
                 StatusCodes.Status201Created)
             .ProducesValidationProblem(
                 StatusCodes.Status400BadRequest);
+
+        endpoints.MapGet(
+                "/reconciliations/{reconciliationId:guid}",
+                async Task<IResult> (
+                    Guid reconciliationId,
+                    GetReconciliationByIdHandler handler,
+                    CancellationToken cancellationToken) =>
+                {
+                    var result = await handler.HandleAsync(
+                        new GetReconciliationByIdQuery(reconciliationId),
+                        cancellationToken);
+
+                    return result is null
+                        ? Results.NotFound()
+                        : Results.Ok(result);
+                })
+            .WithName("GetReconciliationById")
+            .Produces<GetReconciliationByIdResult>(
+                StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         return endpoints;
     }

@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SettleCore.Modules.Reconciliation.Application;
 using SettleCore.Modules.Reconciliation.Application.CreateReconciliation;
+using SettleCore.Modules.Reconciliation.Application.GetReconciliationById;
 using SettleCore.Modules.Reconciliation.Domain;
 
 namespace SettleCore.IntegrationTests;
@@ -121,6 +122,58 @@ public sealed class CreateReconciliationEndpointTests
         Assert.Equal("SGD", created.ExpectedCurrency);
         Assert.Equal(actualCurrency.ToUpperInvariant(), created.ActualCurrency);
         Assert.Equal(expectedStatus, factory.Repository.AddedRecord?.Status);
+    }
+
+    [Fact]
+    public async Task GetReconciliationReturnsCreatedRecord()
+    {
+        using var factory = new ReconciliationApiFactory();
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/reconciliations",
+            new
+            {
+                expectedAmount = 100.00m,
+                expectedCurrency = "SGD",
+                actualAmount = 90.00m,
+                actualCurrency = "SGD"
+            });
+        var created = Assert.IsType<CreateReconciliationResult>(
+            await createResponse.Content.ReadFromJsonAsync<CreateReconciliationResult>());
+
+        var getResponse = await client.GetAsync(
+            $"/reconciliations/{created.ReconciliationId}");
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        var fetched = Assert.IsType<GetReconciliationByIdResult>(
+            await getResponse.Content.ReadFromJsonAsync<GetReconciliationByIdResult>());
+        Assert.Equal(created.ReconciliationId, fetched.ReconciliationId);
+        Assert.Equal(created.Status, fetched.Status);
+        Assert.Equal(created.ExpectedAmount, fetched.ExpectedAmount);
+        Assert.Equal(created.ActualAmount, fetched.ActualAmount);
+    }
+
+    [Fact]
+    public async Task GetMissingReconciliationReturnsNotFound()
+    {
+        using var factory = new ReconciliationApiFactory();
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.GetAsync(
+            $"/reconciliations/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     private sealed class ReconciliationApiFactory : WebApplicationFactory<Program>
