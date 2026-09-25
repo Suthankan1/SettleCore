@@ -139,4 +139,34 @@ public sealed class ReconciliationComparisonTests
                 actualAmount: 100.00m,
                 actualCurrency: " "));
     }
+
+    [Theory]
+    [InlineData("SG")]
+    [InlineData("SGDD")]
+    [InlineData("S1D")]
+    public void CompareRejectsInvalidExpectedCurrency(
+        string currency)
+    {
+        Assert.Throws<ArgumentException>(
+            () => ReconciliationComparison.Compare(
+                expectedAmount: 100.00m,
+                expectedCurrency: currency,
+                actualAmount: 100.00m,
+                actualCurrency: "SGD"));
+    }
+
+    [Theory]
+    [InlineData("US")]
+    [InlineData("USDD")]
+    [InlineData("U$D")]
+    public void CompareRejectsInvalidActualCurrency(
+        string currency)
+    {
+        Assert.Throws<ArgumentException>(
+            () => ReconciliationComparison.Compare(
+                expectedAmount: 100.00m,
+                expectedCurrency: "SGD",
+                actualAmount: 100.00m,
+                actualCurrency: currency));
+    }
 }

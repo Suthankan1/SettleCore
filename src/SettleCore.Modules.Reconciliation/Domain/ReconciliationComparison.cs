@@ -72,6 +72,14 @@ public static class ReconciliationComparison
                 parameterName);
         }
 
+        if (currency.Length != 3 ||
+            !currency.All(char.IsLetter))
+        {
+            throw new ArgumentException(
+                "Reconciliation currency must be a three-letter alphabetic code.",
+                parameterName);
+        }
+
         return currency.ToUpperInvariant();
     }
 }
