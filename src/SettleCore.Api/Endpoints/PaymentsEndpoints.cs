@@ -59,21 +59,40 @@ public static class PaymentsEndpoints
                     GetPaymentByProviderReferenceHandler handler,
                     CancellationToken cancellationToken) =>
                 {
-                    var result = await handler.HandleAsync(
-                        new GetPaymentByProviderReferenceQuery(
-                            provider,
-                            reference),
-                        cancellationToken);
+                    try
+                    {
+                        var result = await handler.HandleAsync(
+                            new GetPaymentByProviderReferenceQuery(
+                                provider,
+                                reference),
+                            cancellationToken);
 
-                    return result is null
-                        ? Results.NotFound()
-                        : Results.Ok(result);
+                        return result is null
+                            ? Results.NotFound()
+                            : Results.Ok(result);
+                    }
+                    catch (ArgumentException exception)
+                    {
+                        var parameterName =
+                            exception.ParamName ?? "providerReference";
+
+                        return Results.ValidationProblem(
+                            new Dictionary<string, string[]>
+                            {
+                                [parameterName] =
+                                [
+                                    exception.Message
+                                ]
+                            });
+                    }
                 })
             .WithName("GetPaymentByProviderReference")
             .Produces<GetPaymentByProviderReferenceResult>(
                 StatusCodes.Status200OK)
             .Produces(
-                StatusCodes.Status404NotFound);
+                StatusCodes.Status404NotFound)
+            .ProducesValidationProblem(
+                StatusCodes.Status400BadRequest);
 
         endpoints.MapGet(
                 "/payments/{paymentId:guid}",

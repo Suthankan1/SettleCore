@@ -149,4 +149,68 @@ public sealed class GetPaymentByProviderReferenceEndpointTests
             HttpStatusCode.NotFound,
             response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetPaymentByProviderReferenceReturnsBadRequestForBlankProvider()
+    {
+        var payment = Payment.Create(
+            100.00m,
+            "SGD");
+
+        payment.AttachProviderReference(
+            ProviderPaymentReference.Create(
+                "stripe",
+                "pi_existing"));
+
+        using var factory =
+            new PaymentsApiFactory(payment);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.GetAsync(
+            "/payments/by-provider-reference" +
+            "?provider=%20" +
+            "&reference=pi_existing");
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPaymentByProviderReferenceReturnsBadRequestForBlankReference()
+    {
+        var payment = Payment.Create(
+            100.00m,
+            "SGD");
+
+        payment.AttachProviderReference(
+            ProviderPaymentReference.Create(
+                "stripe",
+                "pi_existing"));
+
+        using var factory =
+            new PaymentsApiFactory(payment);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.GetAsync(
+            "/payments/by-provider-reference" +
+            "?provider=stripe" +
+            "&reference=%20");
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
 }
