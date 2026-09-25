@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SettleCore.Modules.Reconciliation.Application.CreateReconciliation;
+using SettleCore.Modules.Reconciliation.Application.GetReconciliationById;
 using SettleCore.Modules.Reconciliation.Domain;
 using SettleCore.Modules.Reconciliation.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
@@ -74,6 +75,19 @@ public sealed class ReconciliationPostgreSqlEndToEndTests
         Assert.Equal(created.ActualAmount, persisted.ActualAmount);
         Assert.Equal(created.ExpectedCurrency, persisted.ExpectedCurrency);
         Assert.Equal(created.ActualCurrency, persisted.ActualCurrency);
+
+        var getResponse = await client.GetAsync(
+            $"/reconciliations/{created.ReconciliationId}");
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        var fetched = Assert.IsType<GetReconciliationByIdResult>(
+            await getResponse.Content.ReadFromJsonAsync<GetReconciliationByIdResult>());
+        Assert.Equal(created.ReconciliationId, fetched.ReconciliationId);
+        Assert.Equal(created.Status, fetched.Status);
+        Assert.Equal(created.ExpectedAmount, fetched.ExpectedAmount);
+        Assert.Equal(created.ActualAmount, fetched.ActualAmount);
+        Assert.Equal(created.ExpectedCurrency, fetched.ExpectedCurrency);
+        Assert.Equal(created.ActualCurrency, fetched.ActualCurrency);
     }
 
     private sealed class ReconciliationApiFactory(string connectionString)
