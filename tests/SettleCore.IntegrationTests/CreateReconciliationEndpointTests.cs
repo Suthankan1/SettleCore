@@ -54,6 +54,36 @@ public sealed class CreateReconciliationEndpointTests
         Assert.Equal(created.ReconciliationId, persisted.Id);
     }
 
+    [Theory]
+    [InlineData("", "SGD")]
+    [InlineData("SG", "SGD")]
+    [InlineData("SGD", "123")]
+    public async Task PostReconciliationsWithInvalidCurrencyReturnsBadRequest(
+        string expectedCurrency,
+        string actualCurrency)
+    {
+        using var factory = new ReconciliationApiFactory();
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsJsonAsync(
+            "/reconciliations",
+            new
+            {
+                expectedAmount = 100.00m,
+                expectedCurrency,
+                actualAmount = 100.00m,
+                actualCurrency
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(factory.Repository.AddedRecord);
+    }
+
     private sealed class ReconciliationApiFactory : WebApplicationFactory<Program>
     {
         public RecordingReconciliationRepository Repository { get; } = new();

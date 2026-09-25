@@ -14,21 +14,37 @@ public static class ReconciliationEndpoints
                     CreateReconciliationHandler handler,
                     CancellationToken cancellationToken) =>
                 {
-                    var result = await handler.HandleAsync(
-                        new CreateReconciliationCommand(
-                            request.ExpectedAmount,
-                            request.ExpectedCurrency,
-                            request.ActualAmount,
-                            request.ActualCurrency),
-                        cancellationToken);
+                    try
+                    {
+                        var result = await handler.HandleAsync(
+                            new CreateReconciliationCommand(
+                                request.ExpectedAmount,
+                                request.ExpectedCurrency,
+                                request.ActualAmount,
+                                request.ActualCurrency),
+                            cancellationToken);
 
-                    return Results.Created(
-                        $"/reconciliations/{result.ReconciliationId}",
-                        result);
+                        return Results.Created(
+                            $"/reconciliations/{result.ReconciliationId}",
+                            result);
+                    }
+                    catch (ArgumentException exception)
+                    {
+                        var parameterName =
+                            exception.ParamName ?? "reconciliation";
+
+                        return Results.ValidationProblem(
+                            new Dictionary<string, string[]>
+                            {
+                                [parameterName] = [exception.Message]
+                            });
+                    }
                 })
             .WithName("CreateReconciliation")
             .Produces<CreateReconciliationResult>(
-                StatusCodes.Status201Created);
+                StatusCodes.Status201Created)
+            .ProducesValidationProblem(
+                StatusCodes.Status400BadRequest);
 
         return endpoints;
     }
