@@ -104,4 +104,85 @@ public sealed class EfLedgerRepositoryTests
                 entry.Direction == LedgerDirection.Credit &&
                 entry.AmountMinorUnits == 1000);
     }
+
+    [Fact]
+    public async Task GetAccountsByIdsAsyncReturnsRequestedAccounts()
+    {
+        await using var postgres =
+            new PostgreSqlBuilder("postgres:18-alpine")
+                .WithDatabase("settlecore_test")
+                .WithUsername("settlecore")
+                .WithPassword("settlecore")
+                .Build();
+
+        await postgres.StartAsync();
+
+        var options =
+            new DbContextOptionsBuilder<LedgerDbContext>()
+                .UseNpgsql(postgres.GetConnectionString())
+                .Options;
+
+        await using var dbContext =
+            new LedgerDbContext(options);
+
+        await dbContext.Database.MigrateAsync();
+
+        var ledgerId = Guid.NewGuid();
+
+        var firstAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var secondAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "USD");
+
+        var unrelatedAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "EUR");
+
+        dbContext.LedgerAccounts.AddRange(
+            firstAccount,
+            secondAccount,
+            unrelatedAccount);
+
+        await dbContext.SaveChangesAsync();
+
+        dbContext.ChangeTracker.Clear();
+
+        var repository =
+            new EfLedgerRepository(dbContext);
+
+        var accounts =
+            await repository.GetAccountsByIdsAsync(
+                new[]
+                {
+                    firstAccount.Id,
+                    secondAccount.Id
+                });
+
+        Assert.Equal(2, accounts.Count);
+
+        Assert.Contains(
+            accounts,
+            account =>
+                account.Id == firstAccount.Id &&
+                account.LedgerId == ledgerId &&
+                account.Currency == "SGD");
+
+        Assert.Contains(
+            accounts,
+            account =>
+                account.Id == secondAccount.Id &&
+                account.LedgerId == ledgerId &&
+                account.Currency == "USD");
+
+        Assert.DoesNotContain(
+            accounts,
+            account =>
+                account.Id == unrelatedAccount.Id);
+    }
 }

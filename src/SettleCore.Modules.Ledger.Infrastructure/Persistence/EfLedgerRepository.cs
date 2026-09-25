@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SettleCore.Modules.Ledger.Application;
 using SettleCore.Modules.Ledger.Domain;
 using SettleCore.Modules.Ledger.Infrastructure.Persistence.Records;
@@ -8,6 +9,28 @@ public sealed class EfLedgerRepository(
     LedgerDbContext dbContext)
     : ILedgerRepository
 {
+    public async Task<IReadOnlyList<LedgerAccount>>
+        GetAccountsByIdsAsync(
+            IReadOnlyCollection<Guid> accountIds,
+            CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(accountIds);
+
+        if (accountIds.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = accountIds
+            .Distinct()
+            .ToArray();
+
+        return await dbContext.LedgerAccounts
+            .AsNoTracking()
+            .Where(account => ids.Contains(account.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddTransactionAsync(
         LedgerTransaction transaction,
         CancellationToken cancellationToken = default)
