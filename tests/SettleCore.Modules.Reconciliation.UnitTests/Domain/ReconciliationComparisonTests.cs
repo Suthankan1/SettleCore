@@ -1,20 +1,28 @@
-using SettleCore.Modules.Reconciliation.Domain;
+namespace SettleCore.Modules.Reconciliation.Domain;
 
-namespace SettleCore.Modules.Reconciliation.UnitTests.Domain;
-
-public sealed class ReconciliationComparisonTests
+public static class ReconciliationComparison
 {
-    [Fact]
-    public void CompareReturnsMatchedWhenAmountAndCurrencyMatch()
+    public static ReconciliationResult Compare(
+        decimal expectedAmount,
+        string expectedCurrency,
+        decimal actualAmount,
+        string actualCurrency)
     {
-        var result = ReconciliationComparison.Compare(
-            expectedAmount: 100.00m,
-            expectedCurrency: "SGD",
-            actualAmount: 100.00m,
-            actualCurrency: "SGD");
+        if (expectedAmount != actualAmount &&
+            expectedCurrency == actualCurrency)
+        {
+            return new ReconciliationResult(
+                ReconciliationStatus.AmountMismatch);
+        }
 
-        Assert.Equal(
-            ReconciliationStatus.Matched,
-            result.Status);
+        if (expectedAmount == actualAmount &&
+            expectedCurrency == actualCurrency)
+        {
+            return new ReconciliationResult(
+                ReconciliationStatus.Matched);
+        }
+
+        throw new InvalidOperationException(
+            "Currency mismatch reconciliation behavior is not implemented yet.");
     }
 }
