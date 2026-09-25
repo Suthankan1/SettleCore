@@ -117,4 +117,36 @@ public sealed class GetPaymentByProviderReferenceEndpointTests
             throw new NotSupportedException();
         }
     }
+
+    [Fact]
+    public async Task GetPaymentByProviderReferenceReturnsNotFoundWhenNoPaymentMatches()
+    {
+        var payment = Payment.Create(
+            100.00m,
+            "SGD");
+
+        payment.AttachProviderReference(
+            ProviderPaymentReference.Create(
+                "stripe",
+                "pi_existing"));
+
+        using var factory =
+            new PaymentsApiFactory(payment);
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.GetAsync(
+            "/payments/by-provider-reference" +
+            "?provider=stripe" +
+            "&reference=pi_missing");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
 }
