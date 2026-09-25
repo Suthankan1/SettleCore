@@ -50,4 +50,27 @@ public sealed class CreateReconciliationHandlerTests
             return Task.CompletedTask;
         }
     }
+
+    [Fact]
+    public async Task HandleReturnsAndPersistsNormalizedCurrencies()
+    {
+        var repository = new RecordingReconciliationRepository();
+        var handler = new CreateReconciliationHandler(repository);
+
+        var command = new CreateReconciliationCommand(
+            ExpectedAmount: 100.00m,
+            ExpectedCurrency: "sgd",
+            ActualAmount: 100.00m,
+            ActualCurrency: "sgd");
+
+        var result = await handler.HandleAsync(command);
+
+        Assert.Equal(ReconciliationStatus.Matched, result.Status);
+        Assert.Equal("SGD", result.ExpectedCurrency);
+        Assert.Equal("SGD", result.ActualCurrency);
+
+        Assert.NotNull(repository.AddedRecord);
+        Assert.Equal("SGD", repository.AddedRecord.ExpectedCurrency);
+        Assert.Equal("SGD", repository.AddedRecord.ActualCurrency);
+    }
 }
