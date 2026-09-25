@@ -6,4 +6,6 @@ public sealed class ReconciliationDbContext(
     DbContextOptions<ReconciliationDbContext> options)
     : DbContext(options)
 {
+    public DbSet<ReconciliationRecord> ReconciliationRecords =>
+        Set<ReconciliationRecord>();
 }
