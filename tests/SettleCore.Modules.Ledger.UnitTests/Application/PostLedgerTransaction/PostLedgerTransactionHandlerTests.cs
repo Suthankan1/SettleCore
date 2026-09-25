@@ -101,4 +101,46 @@ public sealed class PostLedgerTransactionHandlerTests
             return Task.CompletedTask;
         }
     }
+
+    [Fact]
+    public async Task HandleRejectsMissingAccountWithoutPersisting()
+    {
+        var ledgerId = Guid.NewGuid();
+
+        var debitAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var missingAccountId = Guid.NewGuid();
+
+        var repository = new RecordingLedgerRepository(
+            debitAccount);
+
+        var handler =
+            new PostLedgerTransactionHandler(repository);
+
+        var command = new PostLedgerTransactionCommand(
+            TransactionId: Guid.NewGuid(),
+            LedgerId: ledgerId,
+            Entries:
+            [
+                new PostLedgerTransactionEntry(
+                    debitAccount.Id,
+                    "SGD",
+                    LedgerDirection.Debit,
+                    1000),
+
+                new PostLedgerTransactionEntry(
+                    missingAccountId,
+                    "SGD",
+                    LedgerDirection.Credit,
+                    1000)
+            ]);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.HandleAsync(command));
+
+        Assert.Null(repository.AddedTransaction);
+    }
 }
