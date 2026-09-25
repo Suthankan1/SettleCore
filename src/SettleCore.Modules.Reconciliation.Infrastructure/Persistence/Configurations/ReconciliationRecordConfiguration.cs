@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SettleCore.Modules.Reconciliation.Domain;
 
 namespace SettleCore.Modules.Reconciliation.Infrastructure.Persistence.Configurations;
 
