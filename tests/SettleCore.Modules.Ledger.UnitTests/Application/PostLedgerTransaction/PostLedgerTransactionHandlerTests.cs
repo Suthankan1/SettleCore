@@ -236,4 +236,50 @@ public sealed class PostLedgerTransactionHandlerTests
 
         Assert.Null(repository.AddedTransaction);
     }
+
+    [Fact]
+    public async Task HandleRejectsUnbalancedTransactionWithoutPersisting()
+    {
+        var ledgerId = Guid.NewGuid();
+
+        var debitAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var creditAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var repository = new RecordingLedgerRepository(
+            debitAccount,
+            creditAccount);
+
+        var handler =
+            new PostLedgerTransactionHandler(repository);
+
+        var command = new PostLedgerTransactionCommand(
+            TransactionId: Guid.NewGuid(),
+            LedgerId: ledgerId,
+            Entries:
+            [
+                new PostLedgerTransactionEntry(
+                    debitAccount.Id,
+                    "SGD",
+                    LedgerDirection.Debit,
+                    1000),
+
+                new PostLedgerTransactionEntry(
+                    creditAccount.Id,
+                    "SGD",
+                    LedgerDirection.Credit,
+                    900)
+            ]);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.HandleAsync(command));
+
+        Assert.Null(repository.AddedTransaction);
+    }
 }
