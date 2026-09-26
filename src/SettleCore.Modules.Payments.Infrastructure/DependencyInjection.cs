@@ -5,10 +5,11 @@ using SettleCore.Modules.Payments.Application.Abstractions;
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.CreatePayment;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
+using SettleCore.Modules.Payments.Application.GetPaymentByProviderReference;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
+using SettleCore.Modules.Payments.Infrastructure.Integrations.Ledger;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
 using SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
-using SettleCore.Modules.Payments.Application.GetPaymentByProviderReference;
 
 namespace SettleCore.Modules.Payments.Infrastructure;
 
@@ -26,7 +27,13 @@ public static class DependencyInjection
         services.AddDbContext<PaymentsDbContext>(
             options => options.UseNpgsql(connectionString));
 
-        services.AddScoped<IPaymentRepository, EfPaymentRepository>();
+        services.AddScoped<
+            IPaymentRepository,
+            EfPaymentRepository>();
+
+        services.AddScoped<
+            IPaymentLedgerPostingPort,
+            PaymentLedgerPostingAdapter>();
 
         services.AddScoped<CreatePaymentHandler>();
         services.AddScoped<GetPaymentByIdHandler>();
