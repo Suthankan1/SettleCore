@@ -67,4 +67,46 @@ public sealed class PaymentLedgerPostingTests
             entries,
             entry => Assert.Equal("SGD", entry.Currency));
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void CreateWithNonPositiveFeeThrows(
+        long feeAmountMinorUnits)
+    {
+        var exception =
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => PaymentLedgerPosting.Create(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    "SGD",
+                    grossAmountMinorUnits: 10_000,
+                    feeAmountMinorUnits));
+
+        Assert.Equal(
+            "feeAmountMinorUnits",
+            exception.ParamName);
+    }
+
+    [Theory]
+    [InlineData(10_000)]
+    [InlineData(10_001)]
+    public void CreateWithFeeNotLessThanGrossThrows(
+        long feeAmountMinorUnits)
+    {
+        var exception =
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => PaymentLedgerPosting.Create(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    "SGD",
+                    grossAmountMinorUnits: 10_000,
+                    feeAmountMinorUnits));
+
+        Assert.Equal(
+            "feeAmountMinorUnits",
+            exception.ParamName);
+    }
 }
