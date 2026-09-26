@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SettleCore.Modules.Payments\SettleCore.Modules.Payments.csproj" />
+    <ProjectReference Include="..\SettleCore.Modules.Ledger\SettleCore.Modules.Ledger.csproj" />
   </ItemGroup>
 
   <ItemGroup>

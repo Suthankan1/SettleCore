@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SettleCore.Modules.Payments.Infrastructure\SettleCore.Modules.Payments.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\SettleCore.Modules.Ledger\SettleCore.Modules.Ledger.csproj" />
   </ItemGroup>
 
 </Project>
