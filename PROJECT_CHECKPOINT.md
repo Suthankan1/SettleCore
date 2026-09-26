@@ -46,3 +46,6 @@
 - 010.5C pushed as `0a0e381`.
 - 010.5D: Missing entries, explicit null entries, and null entry items return HTTP 400 validation problems without persistence. Three regression cases observed RED then GREEN; all 137 tests pass, build clean. Request-shape checks stay at the API boundary.
 - Next: 010.6A API-to-PostgreSQL posting verification using existing Testcontainers conventions.
+- 010.5D pushed as `4593853`.
+- 010.6A: API posting verified end-to-end with PostgreSQL 18 Testcontainers, migrations, seeded accounts, independent read scope, normalized currencies and exact debit/credit values. Focused test and all 138 tests passed; build clean. No production changes needed.
+- Next: complete HTTP invariant rejection coverage before transaction retrieval.
