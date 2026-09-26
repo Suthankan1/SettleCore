@@ -31,6 +31,14 @@ public static class PaymentLedgerPosting
                 nameof(platformRevenueAccountId));
         }
 
+        if (grossAmountMinorUnits <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(grossAmountMinorUnits),
+                grossAmountMinorUnits,
+                "Payment gross amount must be greater than zero.");
+        }
+
         if (feeAmountMinorUnits <= 0)
         {
             throw new ArgumentOutOfRangeException(

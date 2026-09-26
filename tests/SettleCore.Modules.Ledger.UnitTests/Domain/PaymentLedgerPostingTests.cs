@@ -155,4 +155,25 @@ public sealed class PaymentLedgerPostingTests
             expectedParameterName,
             exception.ParamName);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void CreateWithNonPositiveGrossAmountThrows(
+        long grossAmountMinorUnits)
+    {
+        var exception =
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => PaymentLedgerPosting.Create(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    "SGD",
+                    grossAmountMinorUnits,
+                    feeAmountMinorUnits: 1));
+
+        Assert.Equal(
+            "grossAmountMinorUnits",
+            exception.ParamName);
+    }
 }
