@@ -10,6 +10,7 @@ using SettleCore.Modules.Ledger.Application.PostLedgerTransaction;
 using SettleCore.Modules.Ledger.Domain;
 using SettleCore.Modules.Ledger.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
+using SettleCore.Modules.Ledger.Application.GetLedgerTransactionById;
 
 namespace SettleCore.IntegrationTests;
 
@@ -119,5 +120,141 @@ public sealed class LedgerPostgreSqlEndToEndTests
                     options => options.UseNpgsql(connectionString));
             });
         }
+    }
+
+    [Fact]
+    public async Task PostedLedgerTransactionCanBeRetrievedFromPostgreSql()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine")
+            .WithDatabase("settlecore_test")
+            .WithUsername("settlecore")
+            .WithPassword("settlecore")
+            .Build();
+
+        await postgres.StartAsync();
+
+        using var factory =
+            new LedgerApiFactory(postgres.GetConnectionString());
+
+        var ledgerId = Guid.NewGuid();
+
+        var debitAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var creditAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var context =
+                scope.ServiceProvider
+                    .GetRequiredService<LedgerDbContext>();
+
+            await context.Database.MigrateAsync();
+
+            context.LedgerAccounts.AddRange(
+                debitAccount,
+                creditAccount);
+
+            await context.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var transactionId = Guid.NewGuid();
+
+        var postResponse = await client.PostAsJsonAsync(
+            "/ledger/transactions",
+            new
+            {
+                transactionId,
+                ledgerId,
+                entries = new[]
+                {
+                    new
+                    {
+                        accountId = debitAccount.Id,
+                        currency = "SGD",
+                        direction = LedgerDirection.Debit,
+                        amountMinorUnits = 2500L
+                    },
+                    new
+                    {
+                        accountId = creditAccount.Id,
+                        currency = "SGD",
+                        direction = LedgerDirection.Credit,
+                        amountMinorUnits = 2500L
+                    }
+                }
+            });
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            postResponse.StatusCode);
+
+        var getResponse = await client.GetAsync(
+            $"/ledger/transactions/{transactionId}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            getResponse.StatusCode);
+
+        var retrieved =
+            Assert.IsType<GetLedgerTransactionByIdResult>(
+                await getResponse.Content
+                    .ReadFromJsonAsync<GetLedgerTransactionByIdResult>());
+
+        Assert.Equal(
+            transactionId,
+            retrieved.TransactionId);
+
+        Assert.Equal(
+            ledgerId,
+            retrieved.LedgerId);
+
+        Assert.Equal(
+            2,
+            retrieved.Entries.Count);
+
+        var debit = Assert.Single(
+            retrieved.Entries,
+            entry => entry.Direction == LedgerDirection.Debit);
+
+        Assert.Equal(
+            debitAccount.Id,
+            debit.AccountId);
+
+        Assert.Equal(
+            "SGD",
+            debit.Currency);
+
+        Assert.Equal(
+            2500L,
+            debit.AmountMinorUnits);
+
+        var credit = Assert.Single(
+            retrieved.Entries,
+            entry => entry.Direction == LedgerDirection.Credit);
+
+        Assert.Equal(
+            creditAccount.Id,
+            credit.AccountId);
+
+        Assert.Equal(
+            "SGD",
+            credit.Currency);
+
+        Assert.Equal(
+            2500L,
+            credit.AmountMinorUnits);
     }
 }
