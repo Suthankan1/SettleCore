@@ -35,3 +35,11 @@
 - After 010.1A: `dotnet test SettleCore.slnx --nologo -v:q` passed (115 tests).
 - After 010.1B: `dotnet test SettleCore.slnx --nologo -v:q` passed (120 tests).
 - The latest commit and push state should be checked with `git status --short --branch` and `git log -1 --oneline` when resuming.
+
+## Autonomous continuation — 2026-09-26
+
+- Verified 010.5B was already implemented and pushed: `e76972d` on main and origin/main. Focused endpoint test passed; all 133 tests passed; build had no warnings/errors.
+- 010.5C: Ledger ArgumentException failures now return HTTP 400 validation problems, matching Reconciliation. Added unbalanced-entry rejection test asserting no persistence; observed RED then GREEN. All 134 tests passed; build had no warnings/errors.
+- Architecture preserved: endpoint maps requests to application commands; domain validates ledger invariants; no new dependencies or infrastructure.
+- Next: malformed Ledger request coverage, then API-to-PostgreSQL persistence verification and transaction retrieval slices. Later backend scope remains as listed above.
+- Capacity at last check: 76% five-hour / 20% weekly remaining. Stop around 10% remaining in either window.

@@ -98,6 +98,44 @@ public sealed class PostLedgerTransactionEndpointTests
             factory.Repository.AddedTransaction.Id);
     }
 
+    [Fact]
+    public async Task PostLedgerTransactionRejectsUnbalancedEntriesWithoutPersisting()
+    {
+        var ledgerId = Guid.NewGuid();
+        var debitAccount = LedgerAccount.Open(Guid.NewGuid(), ledgerId, "SGD");
+        var creditAccount = LedgerAccount.Open(Guid.NewGuid(), ledgerId, "SGD");
+
+        using var factory = new LedgerApiFactory(debitAccount, creditAccount);
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+
+        var response = await client.PostAsJsonAsync(
+            "/ledger/transactions",
+            new
+            {
+                transactionId = Guid.NewGuid(),
+                ledgerId,
+                entries = new[]
+                {
+                    new { accountId = debitAccount.Id, currency = "SGD",
+                        direction = LedgerDirection.Debit, amountMinorUnits = 1000L },
+                    new { accountId = creditAccount.Id, currency = "SGD",
+                        direction = LedgerDirection.Credit, amountMinorUnits = 900L }
+                }
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<
+            Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Contains("entries", problem.Errors.Keys);
+        Assert.Null(factory.Repository.AddedTransaction);
+    }
+
     private sealed class LedgerApiFactory(
         params LedgerAccount[] accounts)
         : WebApplicationFactory<Program>

@@ -15,29 +15,45 @@ public static class LedgerEndpoints
                     PostLedgerTransactionHandler handler,
                     CancellationToken cancellationToken) =>
                 {
-                    var command = new PostLedgerTransactionCommand(
-                        request.TransactionId,
-                        request.LedgerId,
-                        request.Entries
-                            .Select(entry =>
-                                new PostLedgerTransactionEntry(
-                                    entry.AccountId,
-                                    entry.Currency,
-                                    entry.Direction,
-                                    entry.AmountMinorUnits))
-                            .ToArray());
+                    try
+                    {
+                        var command = new PostLedgerTransactionCommand(
+                            request.TransactionId,
+                            request.LedgerId,
+                            request.Entries
+                                .Select(entry =>
+                                    new PostLedgerTransactionEntry(
+                                        entry.AccountId,
+                                        entry.Currency,
+                                        entry.Direction,
+                                        entry.AmountMinorUnits))
+                                .ToArray());
 
-                    var result = await handler.HandleAsync(
-                        command,
-                        cancellationToken);
+                        var result = await handler.HandleAsync(
+                            command,
+                            cancellationToken);
 
-                    return Results.Created(
-                        $"/ledger/transactions/{result.TransactionId}",
-                        result);
+                        return Results.Created(
+                            $"/ledger/transactions/{result.TransactionId}",
+                            result);
+                    }
+                    catch (ArgumentException exception)
+                    {
+                        var parameterName =
+                            exception.ParamName ?? "transaction";
+
+                        return Results.ValidationProblem(
+                            new Dictionary<string, string[]>
+                            {
+                                [parameterName] = [exception.Message]
+                            });
+                    }
                 })
             .WithName("PostLedgerTransaction")
             .Produces<PostLedgerTransactionResult>(
-                StatusCodes.Status201Created);
+                StatusCodes.Status201Created)
+            .ProducesValidationProblem(
+                StatusCodes.Status400BadRequest);
 
         return endpoints;
     }
