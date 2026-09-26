@@ -17,6 +17,17 @@ public static class LedgerEndpoints
                 {
                     try
                     {
+                        if (request.Entries is null ||
+                            request.Entries.Any(entry => entry is null))
+                        {
+                            return Results.ValidationProblem(
+                                new Dictionary<string, string[]>
+                                {
+                                    ["entries"] =
+                                    ["Ledger entries must be provided and must not contain null values."]
+                                });
+                        }
+
                         var command = new PostLedgerTransactionCommand(
                             request.TransactionId,
                             request.LedgerId,

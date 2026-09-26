@@ -43,3 +43,6 @@
 - Architecture preserved: endpoint maps requests to application commands; domain validates ledger invariants; no new dependencies or infrastructure.
 - Next: malformed Ledger request coverage, then API-to-PostgreSQL persistence verification and transaction retrieval slices. Later backend scope remains as listed above.
 - Capacity at last check: 76% five-hour / 20% weekly remaining. Stop around 10% remaining in either window.
+- 010.5C pushed as `0a0e381`.
+- 010.5D: Missing entries, explicit null entries, and null entry items return HTTP 400 validation problems without persistence. Three regression cases observed RED then GREEN; all 137 tests pass, build clean. Request-shape checks stay at the API boundary.
+- Next: 010.6A API-to-PostgreSQL posting verification using existing Testcontainers conventions.

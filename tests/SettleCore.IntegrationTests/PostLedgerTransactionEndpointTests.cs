@@ -136,6 +136,33 @@ public sealed class PostLedgerTransactionEndpointTests
         Assert.Null(factory.Repository.AddedTransaction);
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"entries\":null}")]
+    [InlineData("{\"entries\":[null,null]}")]
+    public async Task PostLedgerTransactionRejectsMalformedEntriesWithoutPersisting(
+        string json)
+    {
+        using var factory = new LedgerApiFactory();
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+        using var content = new StringContent(
+            json, System.Text.Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync("/ledger/transactions", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<
+            Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Contains("entries", problem.Errors.Keys);
+        Assert.Null(factory.Repository.AddedTransaction);
+    }
+
     private sealed class LedgerApiFactory(
         params LedgerAccount[] accounts)
         : WebApplicationFactory<Program>
