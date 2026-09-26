@@ -257,4 +257,56 @@ public sealed class PostPaymentLedgerTransactionHandlerTests
 
         Assert.Null(repository.AddedTransaction);
     }
+
+    [Fact]
+    public async Task HandleRejectsAccountingAccountCurrencyMismatchWithoutPersisting()
+    {
+        var ledgerId = Guid.NewGuid();
+
+        var processorReceivableAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var merchantPayableAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var platformRevenueAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "USD");
+
+        var repository = new RecordingLedgerRepository(
+            processorReceivableAccount,
+            merchantPayableAccount,
+            platformRevenueAccount);
+
+        var handler =
+            new PostPaymentLedgerTransactionHandler(repository);
+
+        var command = new PostPaymentLedgerTransactionCommand(
+            TransactionId: Guid.NewGuid(),
+            LedgerId: ledgerId,
+            ProcessorReceivableAccountId:
+            processorReceivableAccount.Id,
+            MerchantPayableAccountId:
+            merchantPayableAccount.Id,
+            PlatformRevenueAccountId:
+            platformRevenueAccount.Id,
+            Currency: "SGD",
+            GrossAmountMinorUnits: 10_000,
+            FeeAmountMinorUnits: 300);
+
+        var exception =
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => handler.HandleAsync(command));
+
+        Assert.Equal(
+            "entries",
+            exception.ParamName);
+
+        Assert.Null(repository.AddedTransaction);
+    }
 }
