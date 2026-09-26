@@ -8,6 +8,10 @@ public interface ILedgerRepository
         IReadOnlyCollection<Guid> accountIds,
         CancellationToken cancellationToken = default);
 
+    Task<LedgerTransaction?> GetTransactionByIdAsync(
+        Guid transactionId,
+        CancellationToken cancellationToken = default);
+
     Task AddTransactionAsync(
         LedgerTransaction transaction,
         CancellationToken cancellationToken = default);

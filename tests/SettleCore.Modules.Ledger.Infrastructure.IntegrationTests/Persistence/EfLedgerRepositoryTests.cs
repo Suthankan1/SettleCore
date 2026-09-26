@@ -185,4 +185,135 @@ public sealed class EfLedgerRepositoryTests
             account =>
                 account.Id == unrelatedAccount.Id);
     }
+
+    [Fact]
+    public async Task GetTransactionByIdAsyncReturnsPersistedTransaction()
+    {
+        await using var postgres =
+            new PostgreSqlBuilder("postgres:18-alpine")
+                .WithDatabase("settlecore_test")
+                .WithUsername("settlecore")
+                .WithPassword("settlecore")
+                .Build();
+
+        await postgres.StartAsync();
+
+        var options =
+            new DbContextOptionsBuilder<LedgerDbContext>()
+                .UseNpgsql(postgres.GetConnectionString())
+                .Options;
+
+        await using var dbContext =
+            new LedgerDbContext(options);
+
+        await dbContext.Database.MigrateAsync();
+
+        var ledgerId = Guid.NewGuid();
+
+        var debitAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var creditAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        dbContext.LedgerAccounts.AddRange(
+            debitAccount,
+            creditAccount);
+
+        await dbContext.SaveChangesAsync();
+
+        var transactionId = Guid.NewGuid();
+
+        var transaction = LedgerTransaction.Post(
+            transactionId,
+            ledgerId,
+            new[]
+            {
+                LedgerEntry.Create(
+                    debitAccount.Id,
+                    "SGD",
+                    LedgerDirection.Debit,
+                    1000),
+
+                LedgerEntry.Create(
+                    creditAccount.Id,
+                    "SGD",
+                    LedgerDirection.Credit,
+                    1000)
+            },
+            new[]
+            {
+                debitAccount,
+                creditAccount
+            });
+
+        var repository =
+            new EfLedgerRepository(dbContext);
+
+        await repository.AddTransactionAsync(transaction);
+
+        dbContext.ChangeTracker.Clear();
+
+        var result =
+            await repository.GetTransactionByIdAsync(
+                transactionId);
+
+        Assert.NotNull(result);
+
+        Assert.Equal(transactionId, result.Id);
+        Assert.Equal(ledgerId, result.LedgerId);
+        Assert.Equal(2, result.Entries.Count);
+
+        Assert.Contains(
+            result.Entries,
+            entry =>
+                entry.AccountId == debitAccount.Id &&
+                entry.Currency == "SGD" &&
+                entry.Direction == LedgerDirection.Debit &&
+                entry.AmountMinorUnits == 1000);
+
+        Assert.Contains(
+            result.Entries,
+            entry =>
+                entry.AccountId == creditAccount.Id &&
+                entry.Currency == "SGD" &&
+                entry.Direction == LedgerDirection.Credit &&
+                entry.AmountMinorUnits == 1000);
+    }
+
+    [Fact]
+    public async Task GetTransactionByIdAsyncReturnsNullWhenMissing()
+    {
+        await using var postgres =
+            new PostgreSqlBuilder("postgres:18-alpine")
+                .WithDatabase("settlecore_test")
+                .WithUsername("settlecore")
+                .WithPassword("settlecore")
+                .Build();
+
+        await postgres.StartAsync();
+
+        var options =
+            new DbContextOptionsBuilder<LedgerDbContext>()
+                .UseNpgsql(postgres.GetConnectionString())
+                .Options;
+
+        await using var dbContext =
+            new LedgerDbContext(options);
+
+        await dbContext.Database.MigrateAsync();
+
+        var repository =
+            new EfLedgerRepository(dbContext);
+
+        var result =
+            await repository.GetTransactionByIdAsync(
+                Guid.NewGuid());
+
+        Assert.Null(result);
+    }
 }

@@ -102,10 +102,21 @@ public sealed class PostLedgerTransactionEndpointTests
     public async Task PostLedgerTransactionRejectsUnbalancedEntriesWithoutPersisting()
     {
         var ledgerId = Guid.NewGuid();
-        var debitAccount = LedgerAccount.Open(Guid.NewGuid(), ledgerId, "SGD");
-        var creditAccount = LedgerAccount.Open(Guid.NewGuid(), ledgerId, "SGD");
 
-        using var factory = new LedgerApiFactory(debitAccount, creditAccount);
+        var debitAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        var creditAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
+        using var factory = new LedgerApiFactory(
+            debitAccount,
+            creditAccount);
+
         using var client = factory.CreateClient(
             new WebApplicationFactoryClientOptions
             {
@@ -121,16 +132,31 @@ public sealed class PostLedgerTransactionEndpointTests
                 ledgerId,
                 entries = new[]
                 {
-                    new { accountId = debitAccount.Id, currency = "SGD",
-                        direction = LedgerDirection.Debit, amountMinorUnits = 1000L },
-                    new { accountId = creditAccount.Id, currency = "SGD",
-                        direction = LedgerDirection.Credit, amountMinorUnits = 900L }
+                    new
+                    {
+                        accountId = debitAccount.Id,
+                        currency = "SGD",
+                        direction = LedgerDirection.Debit,
+                        amountMinorUnits = 1000L
+                    },
+                    new
+                    {
+                        accountId = creditAccount.Id,
+                        currency = "SGD",
+                        direction = LedgerDirection.Credit,
+                        amountMinorUnits = 900L
+                    }
                 }
             });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<
-            Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var problem =
+            await response.Content.ReadFromJsonAsync<
+                Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+
         Assert.NotNull(problem);
         Assert.Contains("entries", problem.Errors.Keys);
         Assert.Null(factory.Repository.AddedTransaction);
@@ -144,20 +170,31 @@ public sealed class PostLedgerTransactionEndpointTests
         string json)
     {
         using var factory = new LedgerApiFactory();
+
         using var client = factory.CreateClient(
             new WebApplicationFactoryClientOptions
             {
                 BaseAddress = new Uri("https://localhost"),
                 AllowAutoRedirect = false
             });
+
         using var content = new StringContent(
-            json, System.Text.Encoding.UTF8, "application/json");
+            json,
+            System.Text.Encoding.UTF8,
+            "application/json");
 
-        var response = await client.PostAsync("/ledger/transactions", content);
+        var response = await client.PostAsync(
+            "/ledger/transactions",
+            content);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<
-            Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var problem =
+            await response.Content.ReadFromJsonAsync<
+                Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+
         Assert.NotNull(problem);
         Assert.Contains("entries", problem.Errors.Keys);
         Assert.Null(factory.Repository.AddedTransaction);
@@ -180,52 +217,89 @@ public sealed class PostLedgerTransactionEndpointTests
         string expectedError)
     {
         var ledgerId = Guid.NewGuid();
-        var debitAccount = LedgerAccount.Open(Guid.NewGuid(), ledgerId, "SGD");
+
+        var debitAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            ledgerId,
+            "SGD");
+
         var creditAccount = LedgerAccount.Open(
             Guid.NewGuid(),
-            scenario == "wrong-ledger" ? Guid.NewGuid() : ledgerId,
+            scenario == "wrong-ledger"
+                ? Guid.NewGuid()
+                : ledgerId,
             "SGD");
-        using var factory = new LedgerApiFactory(debitAccount, creditAccount);
+
+        using var factory = new LedgerApiFactory(
+            debitAccount,
+            creditAccount);
+
         using var client = factory.CreateClient(
             new WebApplicationFactoryClientOptions
             {
                 BaseAddress = new Uri("https://localhost"),
                 AllowAutoRedirect = false
             });
+
         var entries = new[]
         {
             new PostLedgerTransactionEntry(
-                scenario == "empty-account-id" ? Guid.Empty : debitAccount.Id,
+                scenario == "empty-account-id"
+                    ? Guid.Empty
+                    : debitAccount.Id,
                 scenario switch
                 {
                     "wrong-currency" => "USD",
                     "invalid-currency" => "12",
                     _ => "SGD"
                 },
-                scenario == "invalid-direction" ? (LedgerDirection)99 : LedgerDirection.Debit,
+                scenario == "invalid-direction"
+                    ? (LedgerDirection)99
+                    : LedgerDirection.Debit,
                 scenario switch
                 {
                     "zero-amount" => 0L,
                     "negative-amount" => -1L,
                     _ => 1000L
                 }),
+
             new PostLedgerTransactionEntry(
-                scenario == "missing-account" ? Guid.NewGuid() : creditAccount.Id,
-                "SGD", LedgerDirection.Credit, 1000L)
+                scenario == "missing-account"
+                    ? Guid.NewGuid()
+                    : creditAccount.Id,
+                "SGD",
+                LedgerDirection.Credit,
+                1000L)
         };
 
         var response = await client.PostAsJsonAsync(
             "/ledger/transactions",
             new
             {
-                transactionId = scenario == "empty-transaction-id" ? Guid.Empty : Guid.NewGuid(),
-                ledgerId = scenario == "empty-ledger-id" ? Guid.Empty : ledgerId,
-                entries = scenario == "empty-entries" ? [] : entries
+                transactionId =
+                    scenario == "empty-transaction-id"
+                        ? Guid.Empty
+                        : Guid.NewGuid(),
+
+                ledgerId =
+                    scenario == "empty-ledger-id"
+                        ? Guid.Empty
+                        : ledgerId,
+
+                entries =
+                    scenario == "empty-entries"
+                        ? []
+                        : entries
             });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<
-            Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var problem =
+            await response.Content.ReadFromJsonAsync<
+                Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+
         Assert.NotNull(problem);
         Assert.Contains(expectedError, problem.Errors.Keys);
         Assert.Null(factory.Repository.AddedTransaction);
@@ -272,6 +346,16 @@ public sealed class PostLedgerTransactionEndpointTests
                     .ToArray();
 
             return Task.FromResult(matches);
+        }
+
+        public Task<LedgerTransaction?> GetTransactionByIdAsync(
+            Guid transactionId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                AddedTransaction?.Id == transactionId
+                    ? AddedTransaction
+                    : null);
         }
 
         public Task AddTransactionAsync(

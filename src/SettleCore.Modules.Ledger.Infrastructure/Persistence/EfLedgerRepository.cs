@@ -31,6 +31,39 @@ public sealed class EfLedgerRepository(
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<LedgerTransaction?> GetTransactionByIdAsync(
+        Guid transactionId,
+        CancellationToken cancellationToken = default)
+    {
+        var record =
+            await dbContext.LedgerTransactions
+                .AsNoTracking()
+                .Include(transaction => transaction.Entries)
+                .SingleOrDefaultAsync(
+                    transaction =>
+                        transaction.Id == transactionId,
+                    cancellationToken);
+
+        if (record is null)
+        {
+            return null;
+        }
+
+        var entries = record.Entries
+            .Select(entry =>
+                LedgerEntry.Create(
+                    entry.AccountId,
+                    entry.Currency,
+                    entry.Direction,
+                    entry.AmountMinorUnits))
+            .ToArray();
+
+        return LedgerTransaction.Rehydrate(
+            record.Id,
+            record.LedgerId,
+            entries);
+    }
+
     public async Task AddTransactionAsync(
         LedgerTransaction transaction,
         CancellationToken cancellationToken = default)

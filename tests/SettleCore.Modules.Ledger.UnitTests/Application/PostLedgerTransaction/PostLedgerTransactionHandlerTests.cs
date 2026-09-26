@@ -92,6 +92,16 @@ public sealed class PostLedgerTransactionHandlerTests
             return Task.FromResult(matches);
         }
 
+        public Task<LedgerTransaction?> GetTransactionByIdAsync(
+            Guid transactionId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                AddedTransaction?.Id == transactionId
+                    ? AddedTransaction
+                    : null);
+        }
+
         public Task AddTransactionAsync(
             LedgerTransaction transaction,
             CancellationToken cancellationToken = default)

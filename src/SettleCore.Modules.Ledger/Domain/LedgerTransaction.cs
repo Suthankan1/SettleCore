@@ -126,4 +126,41 @@ public sealed class LedgerTransaction
             ledgerId,
             Array.AsReadOnly(entrySnapshot));
     }
+
+    public static LedgerTransaction Rehydrate(
+        Guid id,
+        Guid ledgerId,
+        IEnumerable<LedgerEntry> entries)
+    {
+        if (id == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Ledger transaction ID must not be empty.",
+                nameof(id));
+        }
+
+        if (ledgerId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Ledger ID must not be empty.",
+                nameof(ledgerId));
+        }
+
+        ArgumentNullException.ThrowIfNull(entries);
+
+        var entrySnapshot = entries.ToArray();
+
+        if (entrySnapshot.Length < 2 ||
+            entrySnapshot.Any(entry => entry is null))
+        {
+            throw new ArgumentException(
+                "Ledger transaction requires at least two valid entries.",
+                nameof(entries));
+        }
+
+        return new LedgerTransaction(
+            id,
+            ledgerId,
+            Array.AsReadOnly(entrySnapshot));
+    }
 }
