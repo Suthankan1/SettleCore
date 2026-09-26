@@ -1,51 +1,37 @@
-# SettleCore checkpoint
+# SettleCore checkpoint — 2026-09-26
 
-## Completed
+## Current position
 
-- 009.2A: Reconciliation module registered in the API (`0ad5b82`).
-- 009.2B: `POST /reconciliations` happy path returns `201 Created`, normalized comparison data, and a location. An API integration test verifies the handler persists the same record.
-- 009.2C: Invalid reconciliation currency maps to HTTP 400, with no record persisted.
-- 009.2D: API integration cases cover all four comparison statuses and currency normalization.
-- 009.3A: API → handler → EF repository → PostgreSQL creation verified through an independent database read.
-- 009.3B: Repository can retrieve a reconciliation by ID or return null for a missing ID; PostgreSQL integration test covers both.
-- 009.3C: Application query handler returns reconciliation details or null and is registered in DI.
-- 009.3D: `GET /reconciliations/{id}` returns the record or HTTP 404; API tests cover both.
-- 009.3E: Create then GET round-trips through PostgreSQL, with response checked against the persisted row.
-- 010.1A: Ledger domain foundation has immutable entries in minor units and rejects transactions that are not balanced per currency.
-- 010.1B: Ledger account model captures ID, ledger ownership, and normalized currency.
+- Repository: `/Users/suthankan/Desktop/Projects/SettleCore`, branch `main`.
+- 010.5B GREEN already existed and was pushed as `e76972d`; verified remote main and baseline (133 tests, clean build).
+- 010.5C `0a0e381`: Ledger domain/application ArgumentException failures map to HTTP 400 ValidationProblem, matching Reconciliation; unbalanced transaction test confirms no persistence. 134 tests passed.
+- 010.5D `4593853`: Omitted/null entries and null entry items receive HTTP 400 with `entries` error; three regression cases observed RED then GREEN. 137 tests passed.
+- 010.6A `210c687`: API → handler → EF → PostgreSQL end-to-end test; migrations, seeded accounts, independent read scope, currency normalization, exact entries and response location verified. 138 tests passed.
+- 010.6B (commit containing this checkpoint): 11 additional HTTP invariant cases cover missing accounts, wrong ledger/currency, invalid currency/direction, zero/negative amounts, empty IDs and empty entries. Every rejection asserts no persistence.
 
-## Next
+## Verification
 
-- 010.1C: Enforce account currency and ledger ownership before posting.
-- 010.2: Persist ledger transactions and entries atomically; add PostgreSQL tests, then application and API slices.
-- Later: payment-to-ledger integration, audit trail, provider ingestion, webhooks, workers/outbox/idempotency, observability, deployment, then frontend and polish.
-- Continue backend features in small slices before frontend, deployment, and polish.
+- Latest focused Ledger endpoint suite: 16 passed.
+- Latest full solution suite: 149 passed, zero failures/skips.
+- Latest solution build: zero warnings/errors.
+- PostgreSQL tests ran with real PostgreSQL 18 Testcontainers.
+- Each slice committed and pushed to origin/main; run `git log -5 --oneline` for the checkpoint-containing commit hash and `git status --short --branch` to verify clean state.
 
-## Verification and repository state
+## Architecture decisions
 
-- Baseline before 009.2B: `dotnet test SettleCore.slnx` passed (95 tests).
-- After 009.2B: `dotnet test SettleCore.slnx` passed (96 tests).
-- After 009.2C: `dotnet test SettleCore.slnx --nologo -v:q` passed (99 tests).
-- After 009.2D: `dotnet test SettleCore.slnx --nologo -v:q` passed (103 tests).
-- After 009.3A: `dotnet test SettleCore.slnx --nologo -v:q` passed (104 tests).
-- After 009.3B: `dotnet test SettleCore.slnx --nologo -v:q` passed (105 tests).
-- After 009.3C: `dotnet test SettleCore.slnx --nologo -v:q` passed (107 tests).
-- After 009.3D: `dotnet test SettleCore.slnx --nologo -v:q` passed (109 tests).
-- After 009.3E: `dotnet test SettleCore.slnx --nologo -v:q` passed (109 tests).
-- After 010.1A: `dotnet test SettleCore.slnx --nologo -v:q` passed (115 tests).
-- After 010.1B: `dotnet test SettleCore.slnx --nologo -v:q` passed (120 tests).
-- The latest commit and push state should be checked with `git status --short --branch` and `git log -1 --oneline` when resuming.
+- Preserve .NET 10/C#14 modular monolith, Minimal APIs, module-owned DI and EF/PostgreSQL infrastructure.
+- Application/domain remain free of HTTP/EF dependencies. Request-shape validation stays at the API boundary; domain invariants stay in domain types.
+- Reuse Payments/Reconciliation naming and test patterns. No new infrastructure or dependencies introduced.
+- Ledger posting persists transaction plus entries through one SaveChanges call; amounts remain integer minor units and balancing is per currency.
 
-## Autonomous continuation — 2026-09-26
+## Next small slice
 
-- Verified 010.5B was already implemented and pushed: `e76972d` on main and origin/main. Focused endpoint test passed; all 133 tests passed; build had no warnings/errors.
-- 010.5C: Ledger ArgumentException failures now return HTTP 400 validation problems, matching Reconciliation. Added unbalanced-entry rejection test asserting no persistence; observed RED then GREEN. All 134 tests passed; build had no warnings/errors.
-- Architecture preserved: endpoint maps requests to application commands; domain validates ledger invariants; no new dependencies or infrastructure.
-- Next: malformed Ledger request coverage, then API-to-PostgreSQL persistence verification and transaction retrieval slices. Later backend scope remains as listed above.
-- Capacity at last check: 76% five-hour / 20% weekly remaining. Stop around 10% remaining in either window.
-- 010.5C pushed as `0a0e381`.
-- 010.5D: Missing entries, explicit null entries, and null entry items return HTTP 400 validation problems without persistence. Three regression cases observed RED then GREEN; all 137 tests pass, build clean. Request-shape checks stay at the API boundary.
-- Next: 010.6A API-to-PostgreSQL posting verification using existing Testcontainers conventions.
-- 010.5D pushed as `4593853`.
-- 010.6A: API posting verified end-to-end with PostgreSQL 18 Testcontainers, migrations, seeded accounts, independent read scope, normalized currencies and exact debit/credit values. Focused test and all 138 tests passed; build clean. No production changes needed.
-- Next: complete HTTP invariant rejection coverage before transaction retrieval.
+- 010.7A: Add transaction-by-ID repository retrieval and PostgreSQL tests for found/missing IDs, preserving dependency-free boundaries. Inspect the existing Reconciliation repository/query patterns first; decide explicitly how persisted Ledger records become a read result without coupling application to EF records or revalidating historical transactions against mutable accounts.
+- Then add application query handler, API GET (200/404), and POST→GET PostgreSQL round-trip in separate green commits.
+- Remaining backlog from earlier checkpoint: payment-to-ledger integration, audit trail, provider ingestion, webhooks, workers/outbox/idempotency, observability, deployment, frontend/polish last. These broad areas are NOT completed or fully specified; consult the original conversation before choosing their concrete behavior.
+
+## Capacity handoff
+
+- User requested autonomous work with tests/commit/push per small slice, returning to original chat near 10% remaining capacity.
+- Last reading: 30% five-hour and 12% weekly remaining. Handoff at this clean slice boundary rather than starting more work near the threshold.
+- Original chat: `6ab2b1a8-08b4-83ee-b497-fa1440530122` (C# .NET Project Idea).

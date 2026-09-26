@@ -163,6 +163,74 @@ public sealed class PostLedgerTransactionEndpointTests
         Assert.Null(factory.Repository.AddedTransaction);
     }
 
+    [Theory]
+    [InlineData("missing-account", "accounts")]
+    [InlineData("wrong-ledger", "accounts")]
+    [InlineData("wrong-currency", "entries")]
+    [InlineData("invalid-currency", "currency")]
+    [InlineData("invalid-direction", "direction")]
+    [InlineData("zero-amount", "amountMinorUnits")]
+    [InlineData("negative-amount", "amountMinorUnits")]
+    [InlineData("empty-transaction-id", "id")]
+    [InlineData("empty-ledger-id", "ledgerId")]
+    [InlineData("empty-account-id", "accountId")]
+    [InlineData("empty-entries", "entries")]
+    public async Task PostLedgerTransactionRejectsInvalidTransactionWithoutPersisting(
+        string scenario,
+        string expectedError)
+    {
+        var ledgerId = Guid.NewGuid();
+        var debitAccount = LedgerAccount.Open(Guid.NewGuid(), ledgerId, "SGD");
+        var creditAccount = LedgerAccount.Open(
+            Guid.NewGuid(),
+            scenario == "wrong-ledger" ? Guid.NewGuid() : ledgerId,
+            "SGD");
+        using var factory = new LedgerApiFactory(debitAccount, creditAccount);
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
+            });
+        var entries = new[]
+        {
+            new PostLedgerTransactionEntry(
+                scenario == "empty-account-id" ? Guid.Empty : debitAccount.Id,
+                scenario switch
+                {
+                    "wrong-currency" => "USD",
+                    "invalid-currency" => "12",
+                    _ => "SGD"
+                },
+                scenario == "invalid-direction" ? (LedgerDirection)99 : LedgerDirection.Debit,
+                scenario switch
+                {
+                    "zero-amount" => 0L,
+                    "negative-amount" => -1L,
+                    _ => 1000L
+                }),
+            new PostLedgerTransactionEntry(
+                scenario == "missing-account" ? Guid.NewGuid() : creditAccount.Id,
+                "SGD", LedgerDirection.Credit, 1000L)
+        };
+
+        var response = await client.PostAsJsonAsync(
+            "/ledger/transactions",
+            new
+            {
+                transactionId = scenario == "empty-transaction-id" ? Guid.Empty : Guid.NewGuid(),
+                ledgerId = scenario == "empty-ledger-id" ? Guid.Empty : ledgerId,
+                entries = scenario == "empty-entries" ? [] : entries
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<
+            Microsoft.AspNetCore.Mvc.ValidationProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Contains(expectedError, problem.Errors.Keys);
+        Assert.Null(factory.Repository.AddedTransaction);
+    }
+
     private sealed class LedgerApiFactory(
         params LedgerAccount[] accounts)
         : WebApplicationFactory<Program>
