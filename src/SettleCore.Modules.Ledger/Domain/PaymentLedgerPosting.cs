@@ -10,6 +10,27 @@ public static class PaymentLedgerPosting
         long grossAmountMinorUnits,
         long feeAmountMinorUnits)
     {
+        if (processorReceivableAccountId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Processor receivable account ID must not be empty.",
+                nameof(processorReceivableAccountId));
+        }
+
+        if (merchantPayableAccountId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Merchant payable account ID must not be empty.",
+                nameof(merchantPayableAccountId));
+        }
+
+        if (platformRevenueAccountId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Platform revenue account ID must not be empty.",
+                nameof(platformRevenueAccountId));
+        }
+
         if (feeAmountMinorUnits <= 0)
         {
             throw new ArgumentOutOfRangeException(

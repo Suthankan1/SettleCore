@@ -109,4 +109,50 @@ public sealed class PaymentLedgerPostingTests
             "feeAmountMinorUnits",
             exception.ParamName);
     }
+
+    [Theory]
+    [InlineData(0, "processorReceivableAccountId")]
+    [InlineData(1, "merchantPayableAccountId")]
+    [InlineData(2, "platformRevenueAccountId")]
+    public void CreateWithEmptyAccountIdThrowsForAccountingRole(
+        int accountPosition,
+        string expectedParameterName)
+    {
+        var processorReceivableAccountId = Guid.NewGuid();
+        var merchantPayableAccountId = Guid.NewGuid();
+        var platformRevenueAccountId = Guid.NewGuid();
+
+        switch (accountPosition)
+        {
+            case 0:
+                processorReceivableAccountId = Guid.Empty;
+                break;
+
+            case 1:
+                merchantPayableAccountId = Guid.Empty;
+                break;
+
+            case 2:
+                platformRevenueAccountId = Guid.Empty;
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(accountPosition));
+        }
+
+        var exception =
+            Assert.Throws<ArgumentException>(
+                () => PaymentLedgerPosting.Create(
+                    processorReceivableAccountId,
+                    merchantPayableAccountId,
+                    platformRevenueAccountId,
+                    "SGD",
+                    grossAmountMinorUnits: 10_000,
+                    feeAmountMinorUnits: 300));
+
+        Assert.Equal(
+            expectedParameterName,
+            exception.ParamName);
+    }
 }
