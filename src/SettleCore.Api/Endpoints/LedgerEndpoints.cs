@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+using SettleCore.Modules.Ledger.Application.GetLedgerTransactionById;
 using SettleCore.Modules.Ledger.Application.PostLedgerTransaction;
 using SettleCore.Modules.Ledger.Domain;
 
@@ -24,7 +26,9 @@ public static class LedgerEndpoints
                                 new Dictionary<string, string[]>
                                 {
                                     ["entries"] =
-                                    ["Ledger entries must be provided and must not contain null values."]
+                                    [
+                                        "Ledger entries must be provided and must not contain null values."
+                                    ]
                                 });
                         }
 
@@ -65,6 +69,28 @@ public static class LedgerEndpoints
                 StatusCodes.Status201Created)
             .ProducesValidationProblem(
                 StatusCodes.Status400BadRequest);
+
+        endpoints.MapGet(
+                "/ledger/transactions/{transactionId:guid}",
+                async Task<IResult> (
+                    Guid transactionId,
+                    [FromServices] GetLedgerTransactionByIdHandler handler,
+                    CancellationToken cancellationToken) =>
+                {
+                    var result = await handler.HandleAsync(
+                        new GetLedgerTransactionByIdQuery(
+                            transactionId),
+                        cancellationToken);
+
+                    return result is null
+                        ? Results.NotFound()
+                        : Results.Ok(result);
+                })
+            .WithName("GetLedgerTransactionById")
+            .Produces<GetLedgerTransactionByIdResult>(
+                StatusCodes.Status200OK)
+            .Produces(
+                StatusCodes.Status404NotFound);
 
         return endpoints;
     }

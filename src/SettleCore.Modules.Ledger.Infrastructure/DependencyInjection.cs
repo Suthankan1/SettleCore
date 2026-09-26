@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SettleCore.Modules.Ledger.Application;
+using SettleCore.Modules.Ledger.Application.GetLedgerTransactionById;
 using SettleCore.Modules.Ledger.Application.PostLedgerTransaction;
 using SettleCore.Modules.Ledger.Infrastructure.Persistence;
 
@@ -26,6 +27,7 @@ public static class DependencyInjection
             EfLedgerRepository>();
 
         services.AddScoped<PostLedgerTransactionHandler>();
+        services.AddScoped<GetLedgerTransactionByIdHandler>();
 
         return services;
     }
