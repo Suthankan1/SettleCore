@@ -2,6 +2,11 @@ namespace SettleCore.Modules.Payments.Domain;
 
 public static class PaymentAmountConversion
 {
+    public static long ToMinorUnits(decimal amount, string currency)
+    {
+        return ToMinorUnits(amount, PaymentCurrencyPrecision.GetDecimalPlaces(currency));
+    }
+
     // Precision must come from an explicit currency policy; never assume two decimals.
     public static long ToMinorUnits(decimal amount, int decimalPlaces)
     {
