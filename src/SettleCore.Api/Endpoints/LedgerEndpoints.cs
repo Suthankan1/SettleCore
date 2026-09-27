@@ -52,6 +52,10 @@ public static class LedgerEndpoints
                             $"/ledger/transactions/{result.TransactionId}",
                             result);
                     }
+                    catch (LedgerTransactionConflictException exception)
+                    {
+                        return Results.Conflict(new { error = exception.Message });
+                    }
                     catch (ArgumentException exception)
                     {
                         var parameterName =
@@ -68,7 +72,8 @@ public static class LedgerEndpoints
             .Produces<PostLedgerTransactionResult>(
                 StatusCodes.Status201Created)
             .ProducesValidationProblem(
-                StatusCodes.Status400BadRequest);
+                StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status409Conflict);
 
         endpoints.MapGet(
                 "/ledger/transactions/{transactionId:guid}",

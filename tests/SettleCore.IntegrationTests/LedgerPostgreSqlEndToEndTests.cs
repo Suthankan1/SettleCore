@@ -17,6 +17,44 @@ namespace SettleCore.IntegrationTests;
 public sealed class LedgerPostgreSqlEndToEndTests
 {
     [Fact]
+    public async Task PostingRetrySucceedsAndConflictingPayloadReturnsConflict()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        using var factory = new LedgerApiFactory(postgres.GetConnectionString());
+        var ledgerId = Guid.NewGuid();
+        var debit = LedgerAccount.Open(Guid.NewGuid(), ledgerId, "SGD");
+        var credit = LedgerAccount.Open(Guid.NewGuid(), ledgerId, "SGD");
+        using (var scope = factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<LedgerDbContext>();
+            await context.Database.MigrateAsync();
+            context.LedgerAccounts.AddRange(debit, credit);
+            await context.SaveChangesAsync();
+        }
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        var transactionId = Guid.NewGuid();
+        object Request(long amount) => new {
+            transactionId, ledgerId,
+            entries = new[] {
+                new { accountId = debit.Id, currency = "SGD", direction = LedgerDirection.Debit, amountMinorUnits = amount },
+                new { accountId = credit.Id, currency = "SGD", direction = LedgerDirection.Credit, amountMinorUnits = amount } }
+        };
+        using var original = await client.PostAsJsonAsync("/ledger/transactions", Request(1000));
+        using var retry = await client.PostAsJsonAsync("/ledger/transactions", Request(1000));
+        using var conflict = await client.PostAsJsonAsync("/ledger/transactions", Request(2000));
+        Assert.Equal(HttpStatusCode.Created, original.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, retry.StatusCode);
+        Assert.Equal(original.Headers.Location, retry.Headers.Location);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        using var verification = factory.Services.CreateScope();
+        var db = verification.ServiceProvider.GetRequiredService<LedgerDbContext>();
+        Assert.Equal(1, await db.LedgerTransactions.CountAsync());
+        Assert.Equal(2, await db.LedgerEntries.CountAsync());
+        Assert.All(await db.LedgerEntries.ToListAsync(), entry => Assert.Equal(1000, entry.AmountMinorUnits));
+    }
+
+    [Fact]
     public async Task PostLedgerTransactionPersistsEntriesInPostgreSql()
     {
         await using var postgres = new PostgreSqlBuilder("postgres:18-alpine")
