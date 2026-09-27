@@ -10,10 +10,15 @@ public sealed class PaymentsDbContext(
 {
     public DbSet<Payment> Payments => Set<Payment>();
 
+    public DbSet<PaymentLedgerPostingIntent> PaymentLedgerPostingIntents =>
+        Set<PaymentLedgerPostingIntent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfiguration(new PaymentConfiguration());
+        modelBuilder.ApplyConfiguration(
+            new PaymentLedgerPostingIntentConfiguration());
     }
 }

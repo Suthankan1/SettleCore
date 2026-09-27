@@ -49,7 +49,7 @@ public sealed class PaymentLedgerPostingIntent
 
     public long FeeAmountMinorUnits { get; }
 
-    public PaymentLedgerPostingIntentStatus Status { get; }
+    public PaymentLedgerPostingIntentStatus Status { get; private set; }
 
     public static PaymentLedgerPostingIntent Create(
         PaymentId paymentId,
