@@ -12,6 +12,8 @@ public interface ILedgerRepository
         Guid transactionId,
         CancellationToken cancellationToken = default);
 
+    // Repeating an ID with the same ledger and entry multiset is a no-op.
+    // Different contents throw LedgerTransactionConflictException, including concurrent retries.
     Task AddTransactionAsync(
         LedgerTransaction transaction,
         CancellationToken cancellationToken = default);

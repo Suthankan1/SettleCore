@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SettleCore.Modules.Ledger.Application;
 using SettleCore.Modules.Ledger.Domain;
 using SettleCore.Modules.Ledger.Infrastructure.Persistence.Records;
@@ -70,6 +71,13 @@ public sealed class EfLedgerRepository(
     {
         ArgumentNullException.ThrowIfNull(transaction);
 
+        var existing = await GetTransactionByIdAsync(transaction.Id, cancellationToken);
+        if (existing is not null)
+        {
+            EnsureSamePosting(existing, transaction);
+            return;
+        }
+
         var entries = transaction.Entries
             .Select(entry =>
                 new LedgerEntryRecord(
@@ -88,6 +96,47 @@ public sealed class EfLedgerRepository(
 
         dbContext.LedgerTransactions.Add(record);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: "PK_ledger_transactions"
+            })
+        {
+            // Another writer won. Detach only this failed insert, leaving unrelated tracking intact.
+            foreach (var entry in entries)
+            {
+                dbContext.Entry(entry).State = EntityState.Detached;
+            }
+            dbContext.Entry(record).State = EntityState.Detached;
+
+            existing = await GetTransactionByIdAsync(transaction.Id, cancellationToken);
+            if (existing is null)
+            {
+                throw;
+            }
+            EnsureSamePosting(existing, transaction);
+        }
+    }
+
+    private static void EnsureSamePosting(LedgerTransaction existing, LedgerTransaction requested)
+    {
+        // Compare a multiset: database row order is irrelevant, duplicate entries are not.
+        static IEnumerable<(Guid AccountId, string Currency, LedgerDirection Direction, long Amount)> Contents(LedgerTransaction transaction) =>
+            transaction.Entries
+                .Select(entry => (entry.AccountId, entry.Currency, entry.Direction, entry.AmountMinorUnits))
+                .OrderBy(entry => entry.AccountId)
+                .ThenBy(entry => entry.Currency, StringComparer.Ordinal)
+                .ThenBy(entry => entry.Direction)
+                .ThenBy(entry => entry.AmountMinorUnits);
+
+        if (existing.LedgerId != requested.LedgerId || !Contents(existing).SequenceEqual(Contents(requested)))
+        {
+            throw new LedgerTransactionConflictException(requested.Id);
+        }
     }
 }
