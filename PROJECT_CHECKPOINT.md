@@ -212,3 +212,10 @@
 - Focused test 1 passed; full solution 280 passed, zero failed/skipped; solution build zero warnings/errors. No migration or frontend changes.
 - Next: scheduling-failure isolation regression. A retry-schedule exception currently escapes the batch catch and prevents later intents from processing; prove failure with PostgreSQL-backed batch test before minimal fix. Preserve cancellation propagation.
 - This checkpoint travels with the separate endpoint commit; exact hash from Git. Durable progress memory is this tracked file; account-wide ChatGPT memory editing is unavailable in these tools.
+
+## 2026-10-08 — retry scheduling failure isolation
+- Status endpoint committed/pushed as `4676f7b`.
+- PostgreSQL-backed batch RED showed retry-scheduling exception aborting later intent processing. Minimal nested catch logs scheduling failure and continues; failed intent remains pending with unchanged schedule for replay.
+- GREEN also verifies cancellation during scheduling propagates immediately without touching later intents, and a later healthy batch completes the retained intent.
+- Focused batch tests 4 passed; host integration 72 passed; full build zero warnings/errors. Last full solution 280 passed before these two additional host cases.
+- Next: hosted worker restart regression with durable scheduled pending intent and no duplicate Ledger entries; then operational posting metrics. No frontend or invented provider contract.

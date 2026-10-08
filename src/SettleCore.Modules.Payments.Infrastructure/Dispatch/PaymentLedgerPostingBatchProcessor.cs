@@ -42,12 +42,22 @@ public sealed partial class PaymentLedgerPostingBatchProcessor(
                 PostingFailed(logger, exception, paymentId.Value);
                 var repository = scope.ServiceProvider
                     .GetRequiredService<IPaymentLedgerPostingIntentRepository>();
-                await repository.ScheduleRetryAsync(paymentId,
-                    clock.GetUtcNow().Add(retryDelay), cancellationToken);
+                try
+                {
+                    await repository.ScheduleRetryAsync(paymentId,
+                        clock.GetUtcNow().Add(retryDelay), cancellationToken);
+                }
+                catch (Exception schedulingException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    RetrySchedulingFailed(logger, schedulingException, paymentId.Value);
+                }
             }
         }
         return completed;
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Payment {PaymentId} retry scheduling failed; intent remains pending.")]
+    private static partial void RetrySchedulingFailed(ILogger logger, Exception exception, Guid paymentId);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Payment {PaymentId} ledger posting failed; scheduling retry.")]
     private static partial void PostingFailed(ILogger logger, Exception exception, Guid paymentId);

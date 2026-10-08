@@ -7,6 +7,7 @@ using SettleCore.Modules.Payments.Domain;
 using SettleCore.Modules.Payments.Infrastructure;
 using SettleCore.Modules.Payments.Infrastructure.Dispatch;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
+using SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
 using Testcontainers.PostgreSql;
 
 namespace SettleCore.IntegrationTests;
@@ -61,7 +62,48 @@ public sealed class PaymentLedgerPostingBatchProcessorTests : IAsyncLifetime
         });
     }
 
-    private async Task<ServiceProvider> CreateProviderAsync(RecordingPort port, ManualClock clock)
+    [Fact]
+    public async Task RetrySchedulingFailureDoesNotBlockLaterIntents()
+    {
+        var clock = new ManualClock();
+        var port = new RecordingPort { FailFirst = true };
+        using var provider = await CreateProviderAsync(port, clock, failScheduling: true);
+        Assert.Equal(1, await Processor(provider, clock).ProcessAsync(10, TimeSpan.FromMinutes(1)));
+        Assert.Equal(2, port.Calls);
+        using var scope = provider.CreateScope();
+        var intents = await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>()
+            .PaymentLedgerPostingIntents.OrderBy(x => x.PaymentId).ToListAsync();
+        Assert.Equal(PaymentLedgerPostingIntentStatus.Pending, intents[0].Status);
+        Assert.Null(intents[0].NextAttemptAt);
+        Assert.Equal(PaymentLedgerPostingIntentStatus.Posted, intents[1].Status);
+        port.FailFirst = false;
+        Assert.Equal(1, await Processor(provider, clock).ProcessAsync(10, TimeSpan.FromMinutes(1)));
+        Assert.Equal(3, port.Calls);
+    }
+
+    [Fact]
+    public async Task CancellationDuringRetrySchedulingStopsBatch()
+    {
+        var clock = new ManualClock();
+        var port = new RecordingPort { FailFirst = true };
+        using var cancellation = new CancellationTokenSource();
+        using var provider = await CreateProviderAsync(port, clock, failScheduling: true,
+            scheduleCancellation: cancellation);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Processor(provider, clock)
+            .ProcessAsync(10, TimeSpan.FromMinutes(1), cancellation.Token));
+        Assert.Equal(1, port.Calls);
+        using var scope = provider.CreateScope();
+        var intents = await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>()
+            .PaymentLedgerPostingIntents.ToListAsync();
+        Assert.All(intents, intent =>
+        {
+            Assert.Equal(PaymentLedgerPostingIntentStatus.Pending, intent.Status);
+            Assert.Null(intent.NextAttemptAt);
+        });
+    }
+
+    private async Task<ServiceProvider> CreateProviderAsync(RecordingPort port, ManualClock clock,
+        bool failScheduling = false, CancellationTokenSource? scheduleCancellation = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -71,6 +113,12 @@ public sealed class PaymentLedgerPostingBatchProcessorTests : IAsyncLifetime
         services.AddPaymentsModule(configuration);
         services.AddSingleton<IPaymentLedgerPostingPort>(port);
         services.AddSingleton<TimeProvider>(clock);
+        if (failScheduling)
+        {
+            services.AddScoped<IPaymentLedgerPostingIntentRepository>(scope => new SchedulingFailureRepository(
+                new EfPaymentLedgerPostingIntentRepository(scope.GetRequiredService<PaymentsDbContext>(), clock),
+                scheduleCancellation));
+        }
         var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
@@ -91,6 +139,26 @@ public sealed class PaymentLedgerPostingBatchProcessorTests : IAsyncLifetime
     private static PaymentLedgerPostingBatchProcessor Processor(ServiceProvider provider, ManualClock clock)
         => new(provider.GetRequiredService<IServiceScopeFactory>(), clock,
             NullLogger<PaymentLedgerPostingBatchProcessor>.Instance);
+
+    private sealed class SchedulingFailureRepository(IPaymentLedgerPostingIntentRepository inner,
+        CancellationTokenSource? cancellation) : IPaymentLedgerPostingIntentRepository
+    {
+        public Task AddAsync(PaymentLedgerPostingIntent intent, CancellationToken cancellationToken = default)
+            => inner.AddAsync(intent, cancellationToken);
+        public Task<PaymentLedgerPostingIntent?> GetByPaymentIdAsync(PaymentId paymentId,
+            CancellationToken cancellationToken = default) => inner.GetByPaymentIdAsync(paymentId, cancellationToken);
+        public Task<bool> MarkPostedAsync(PaymentId paymentId, CancellationToken cancellationToken = default)
+            => inner.MarkPostedAsync(paymentId, cancellationToken);
+        public Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(int limit,
+            CancellationToken cancellationToken = default) => inner.GetPendingAsync(limit, cancellationToken);
+        public Task<bool> ScheduleRetryAsync(PaymentId paymentId, DateTimeOffset nextAttemptAt,
+            CancellationToken cancellationToken = default)
+        {
+            cancellation?.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("Retry schedule storage unavailable.");
+        }
+    }
 
     private sealed class ManualClock : TimeProvider
     {
