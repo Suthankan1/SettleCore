@@ -60,3 +60,11 @@
 - Full solution 240 passed, zero failed/skipped. Build zero warnings/errors.
 - Next: atomic payment-success + posting-intent persistence boundary, starting with PostgreSQL happy-path and rollback RED tests; then retry/conflict coverage before endpoint changes.
 - Latest quota: 89% short-window and 92% weekly remaining; handback threshold not reached.
+
+## 2026-10-08 — 011.6E atomic persistence foundation
+- Repository registration committed/pushed as `3587e31`.
+- Added IPaymentSuccessPersistence and EF implementation saving succeeded payment and pending intent in one SaveChanges transaction; no Ledger call and no endpoint change.
+- Compile-time RED captured before implementation. Two PostgreSQL GREEN cases verify happy path and rollback of status when intent insertion fails with duplicate key.
+- Payments infrastructure 14 passed; full solution 242 passed, zero failed/skipped; full build zero warnings/errors.
+- Next: guard the boundary against mismatched payment/intent identity and invalid status, then matching/conflicting concurrent retries with database-backed tests before application/API wiring.
+- This foundation deliberately does not yet provide retry semantics or DI registration. Keep old status-only flow disconnected from Ledger.
