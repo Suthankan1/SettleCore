@@ -39,6 +39,9 @@ public static class DependencyInjection
             IPaymentLedgerPostingPort,
             PaymentLedgerPostingAdapter>();
 
+        services.AddScoped<IPaymentSuccessPersistence, EfPaymentSuccessPersistence>();
+        services.AddScoped<RecordPaymentSuccessHandler>();
+
         services.AddScoped<CreatePaymentHandler>();
         services.AddScoped<GetPaymentByIdHandler>();
         services.AddScoped<MarkPaymentSucceededHandler>();

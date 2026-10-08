@@ -28,9 +28,10 @@ public sealed class MarkPaymentSucceededEndpointTests
                 AllowAutoRedirect = false
             });
 
-        var response = await client.PostAsync(
+        var response = await client.PostAsJsonAsync(
             $"/payments/{payment.Id.Value}/succeed",
-            content: null);
+            new PaymentLedgerPostingInput(Guid.NewGuid(), Guid.NewGuid(),
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 300));
 
         Assert.Equal(
             HttpStatusCode.OK,
@@ -69,7 +70,7 @@ public sealed class MarkPaymentSucceededEndpointTests
     }
 
     [Fact]
-    public async Task PostSucceedWhenPaymentAlreadySucceededReturnsConflict()
+    public async Task PostSucceedWhenPaymentAlreadySucceededAcceptsExplicitInput()
     {
         var payment = Payment.Create(200.00m, "SGD");
         payment.MarkSucceeded();
@@ -84,12 +85,13 @@ public sealed class MarkPaymentSucceededEndpointTests
                 AllowAutoRedirect = false
             });
 
-        var response = await client.PostAsync(
+        var response = await client.PostAsJsonAsync(
             $"/payments/{payment.Id.Value}/succeed",
-            content: null);
+            new PaymentLedgerPostingInput(Guid.NewGuid(), Guid.NewGuid(),
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 300));
 
         Assert.Equal(
-            HttpStatusCode.Conflict,
+            HttpStatusCode.OK,
             response.StatusCode);
     }
 
@@ -106,9 +108,10 @@ public sealed class MarkPaymentSucceededEndpointTests
                 AllowAutoRedirect = false
             });
 
-        var response = await client.PostAsync(
+        var response = await client.PostAsJsonAsync(
             $"/payments/{Guid.Empty}/succeed",
-            content: null);
+            new PaymentLedgerPostingInput(Guid.NewGuid(), Guid.NewGuid(),
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 300));
 
         Assert.Equal(
             HttpStatusCode.BadRequest,
@@ -129,15 +132,16 @@ public sealed class MarkPaymentSucceededEndpointTests
             {
                 services.RemoveAll<IPaymentRepository>();
 
-                services.AddSingleton<IPaymentRepository>(
-                    Repository);
+                services.AddSingleton<IPaymentRepository>(Repository);
+                services.RemoveAll<IPaymentSuccessPersistence>();
+                services.AddSingleton<IPaymentSuccessPersistence>(Repository);
             });
         }
     }
 
     public sealed class RecordingPaymentRepository(
         Payment? payment)
-        : IPaymentRepository
+        : IPaymentRepository, IPaymentSuccessPersistence
     {
         public Payment? UpdatedPayment { get; private set; }
 
@@ -155,12 +159,15 @@ public sealed class MarkPaymentSucceededEndpointTests
             return Task.FromResult(payment);
         }
 
-        public Task UpdateAsync(
-            Payment payment,
+        public Task UpdateAsync(Payment payment, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException("Success requires the atomic persistence boundary.");
+        }
+
+        public Task SaveAsync(Payment payment, PaymentLedgerPostingIntent intent,
             CancellationToken cancellationToken = default)
         {
             UpdatedPayment = payment;
-
             return Task.CompletedTask;
         }
 

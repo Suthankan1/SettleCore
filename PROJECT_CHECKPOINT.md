@@ -105,3 +105,11 @@
 - PostgreSQL RED exposed false successful acknowledgment when identical intent existed but stored payment remained pending. Boundary now checks actual persisted payment success before acknowledging retries, and detaches unsaved status on pre-existing intent paths.
 - GREEN confirms inconsistent pair is rejected and later SaveChanges cannot leak the attempted success. Focused 1 passed; Payments infrastructure 28 passed; solution build zero warnings/errors. Last full solution 255 passed before application and this guard.
 - Next: API body/DI wiring, with PostgreSQL success+intent round-trip, matching retry, changed-payload 409, missing body/invalid input 400 and missing payment 404 tests before dispatch work.
+
+## 2026-10-08 — 011.6F explicit-input success endpoint
+- Persisted-state consistency committed/pushed: `27186e1`.
+- POST /payments/{id}/succeed now requires PaymentLedgerPostingInput JSON body and resolves RecordPaymentSuccessHandler/IPaymentSuccessPersistence through scoped module DI.
+- PostgreSQL API assertion RED: missing body previously returned 200 and mutated status. GREEN validates missing/invalid body 400 without writes, missing payment 404, valid success and identical retry 200, changed transaction ID 409; independently reloads exact payload, one pending intent and succeeded payment.
+- Existing HTTP tests now send explicit inputs; already-succeeded explicit retry is allowed. Old status-only application handler remains available but endpoint does not use it or directly call Ledger.
+- Focused API suite 9 passed; host integration 63 passed; full solution 261 passed, zero failed/skipped; build zero warnings/errors.
+- Next: map amount conversion overflow to HTTP validation failure without mutation; then durable intent completion/dispatch semantics and retry after Ledger success but before acknowledgment. No accounting or fee defaults introduced.

@@ -138,13 +138,14 @@ public static class PaymentsEndpoints
                 "/payments/{paymentId:guid}/succeed",
                 async Task<IResult> (
                     Guid paymentId,
-                    MarkPaymentSucceededHandler handler,
+                    PaymentLedgerPostingInput postingInput,
+                    RecordPaymentSuccessHandler handler,
                     CancellationToken cancellationToken) =>
                 {
                     try
                     {
                         var result = await handler.HandleAsync(
-                            new MarkPaymentSucceededCommand(paymentId),
+                            new RecordPaymentSuccessCommand(paymentId, postingInput),
                             cancellationToken);
 
                         return result is null
