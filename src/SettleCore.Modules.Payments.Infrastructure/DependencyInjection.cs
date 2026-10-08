@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using SettleCore.Modules.Payments.Infrastructure.Dispatch;
 using SettleCore.Modules.Payments.Application.Abstractions;
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.CreatePayment;
@@ -40,6 +42,8 @@ public static class DependencyInjection
             IPaymentLedgerPostingPort,
             PaymentLedgerPostingAdapter>();
 
+        services.TryAddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddSingleton<PaymentLedgerPostingBatchProcessor>();
         services.AddScoped<IPaymentSuccessPersistence, EfPaymentSuccessPersistence>();
         services.AddScoped<RecordPaymentSuccessHandler>();
         services.AddScoped<DispatchPaymentLedgerPostingHandler>();

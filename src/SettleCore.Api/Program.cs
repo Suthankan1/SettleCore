@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using SettleCore.Api.Endpoints;
+using SettleCore.Api.BackgroundTasks;
 using SettleCore.Modules.Ledger.Infrastructure;
 using SettleCore.Modules.Payments.Infrastructure;
 using SettleCore.Modules.Reconciliation.Infrastructure;
@@ -8,6 +9,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
+builder.Services.AddOptions<PaymentLedgerPostingWorkerOptions>()
+    .Bind(builder.Configuration.GetSection("PaymentLedgerPostingWorker"))
+    .Validate(static settings => settings.BatchSize > 0 &&
+        settings.PollIntervalMilliseconds > 0 && settings.RetryDelaySeconds > 0,
+        "Payment posting batch size, poll interval and retry delay must be positive.")
+    .ValidateOnStart();
+builder.Services.AddHostedService<PaymentLedgerPostingWorker>();
 
 builder.Services.AddPaymentsModule(builder.Configuration);
 builder.Services.AddReconciliationModule(builder.Configuration);

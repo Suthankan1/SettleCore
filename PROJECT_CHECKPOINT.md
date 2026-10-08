@@ -1,4 +1,33 @@
-# SettleCore checkpoint — 2026-09-27
+# SettleCore checkpoint — 2026-10-08
+
+## Current handback
+- Resumed from 011.6C, `873825f`. Completed 011.6D repository boundary through 011.8D opt-in automatic posting worker, in separately tested, committed and pushed slices.
+- Working copy used: `/Users/suthankan/.codex/.chatgpt-projects/g-p-6a87d9fd8d408191ab054e1d87dc13d6/SettleCore-current`, branch `main`, remote `https://github.com/Suthankan1/SettleCore.git`.
+- Primary repository: `/Users/suthankan/Desktop/Projects/SettleCore`; clean baseline verified before final synchronization. Fast-forward it to the final pushed commit; do not reset or overwrite local changes.
+- Final production verification: focused automatic-worker PostgreSQL test passed; all 69 host integration tests passed; full solution 275 passed, zero failed/skipped; full build zero warnings/errors.
+- Last prior commit: `7a4c5cf` (failure-isolated batch processor), pushed. This checkpoint is included in the hosted-worker commit; obtain its exact hash with `git log -1 --oneline`. No unfinished implementation is intended at handback.
+- Quota threshold: stop new slices around 10% remaining. Last check during closing validation: 13% short-window, 80% weekly remaining. Do not consume reset credits automatically.
+
+## Current behavior and operating requirements
+- Success endpoint requires caller-supplied transaction/ledger/account IDs and fee explicitly labelled in minor units. Factory uses stored payment amount/currency; no fee formula or accounting routing defaults.
+- Succeeded status and complete immutable pending intent persist atomically. Matching retries are idempotent; changed payloads produce 409, including changed transaction IDs for the same payment. Concurrent writers and true PostgreSQL rollback verified.
+- Dispatch calls Ledger before acknowledging Posted. Lost acknowledgment replays the stable transaction identity and exact payload; real separate-store PostgreSQL tests prove one balanced transaction/three entries.
+- Pending batches are bounded, require committed payment success, exclude posted/orphan/inconsistent records, and filter persisted next-attempt times. Each intent has its own scope. Failures log and schedule delayed retry; host shutdown cancellation leaves durable pending work.
+- `PaymentLedgerPostingWorker` is disabled by default. Apply Payments and Ledger migrations and provision the caller's ledger accounts before enabling it. Set `PaymentLedgerPostingWorker:Enabled=true` (environment variable `PaymentLedgerPostingWorker__Enabled=true`). Operational defaults: BatchSize=100, PollIntervalMilliseconds=5000, RetryDelaySeconds=60; all must be positive and are validated at startup. Test enables the worker explicitly and verifies HTTP → automatic dispatch → Ledger.
+- New migration: `20261008113952_AddPaymentLedgerPostingRetrySchedule`, adding only nullable intent `next_attempt_at` and the status/next-attempt/payment index.
+- No frontend work. Audit trail, provider ingestion/webhooks, broader observability, deployment and other remaining backend roadmap work are not complete.
+
+## Next intended small slice
+- 011.8E: read-only posting-intent status lookup by payment ID, starting with RED application query tests, then minimal result/handler, DI and PostgreSQL HTTP tests. Expose pending/posted status and next-attempt time so delayed/failed dispatch can be inspected.
+- Then strengthen batch scheduling-failure isolation and hosted-worker failure/restart coverage, add posting metrics/audit, and continue defined backend work. Provider-specific behavior requires actual provider requirements; do not invent signatures or event contracts.
+- Preserve focused RED → minimal GREEN → relevant module checks → full solution/build at meaningful integration boundaries → separate commit/push, with a checkpoint per slice.
+
+## 011.8D hosted worker closing slice
+- PostgreSQL assertion RED captured: HTTP success persisted intent but it remained Pending without a worker. GREEN with enabled hosted worker completes it automatically and retains one balanced Ledger transaction with three entries.
+- Added validated opt-in worker options, cancellation-aware polling, batch failure logging/retry, TimeProvider/batch DI and default disabled configuration.
+- Host factory explicitly replaces both database contexts so the end-to-end test uses its separate isolated stores.
+
+## Historical checkpoint — 2026-09-27
 
 ## Current position
 - Active repository: `/Users/suthankan/Desktop/Projects/SettleCore`, branch `main`.
