@@ -219,3 +219,10 @@
 - GREEN also verifies cancellation during scheduling propagates immediately without touching later intents, and a later healthy batch completes the retained intent.
 - Focused batch tests 4 passed; host integration 72 passed; full build zero warnings/errors. Last full solution 280 passed before these two additional host cases.
 - Next: hosted worker restart regression with durable scheduled pending intent and no duplicate Ledger entries; then operational posting metrics. No frontend or invented provider contract.
+
+## 2026-10-08 — hosted worker restart regression
+- Scheduling isolation committed/pushed as `e59b2da`.
+- Expanded actual HTTP/host/two-PostgreSQL-store worker test: missing supplied Ledger accounts causes durable delayed retry; dispose first host, provision those exact accounts, start fresh host and verify automatic completion and one balanced transaction/three entries.
+- Test-first regression was GREEN on existing production code; no artificial RED or production change made.
+- Focused worker tests 2 passed; host integration 73 passed; build zero warnings/errors. Last full solution 280 passed before three new host cases.
+- Next: operational counters for attempts/completions/posting failures/retry-scheduling failures using .NET metrics, with focused behavior RED before instrumentation. Quota last observed 22% short-window/72% weekly remaining.

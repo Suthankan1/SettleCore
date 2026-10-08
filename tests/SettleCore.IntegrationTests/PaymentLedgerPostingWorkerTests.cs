@@ -20,8 +20,10 @@ namespace SettleCore.IntegrationTests;
 
 public sealed class PaymentLedgerPostingWorkerTests
 {
-    [Fact]
-    public async Task EnabledWorkerPostsHttpPaymentSuccessAcrossSeparateStores()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EnabledWorkerPostsHttpPaymentSuccessAcrossSeparateStores(bool restartAfterFailure)
     {
         await using var payments = new PostgreSqlBuilder("postgres:18-alpine").Build();
         await using var ledger = new PostgreSqlBuilder("postgres:18-alpine").Build();
@@ -40,11 +42,10 @@ public sealed class PaymentLedgerPostingWorkerTests
         await using (var ledgerSetup = new LedgerDbContext(ledgerOptions))
         {
             await ledgerSetup.Database.MigrateAsync();
-            ledgerSetup.LedgerAccounts.AddRange(
-                LedgerAccount.Open(input.ProcessorReceivableAccountId, input.LedgerId, "SGD"),
-                LedgerAccount.Open(input.MerchantPayableAccountId, input.LedgerId, "SGD"),
-                LedgerAccount.Open(input.PlatformRevenueAccountId, input.LedgerId, "SGD"));
-            await ledgerSetup.SaveChangesAsync();
+            if (!restartAfterFailure)
+            {
+                await ProvisionAccountsAsync(ledgerSetup, input);
+            }
         }
         using var factory = new WorkerApiFactory(payments.GetConnectionString(), ledger.GetConnectionString());
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -57,6 +58,28 @@ public sealed class PaymentLedgerPostingWorkerTests
         Assert.NotNull(payment);
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
             $"/payments/{payment.PaymentId}/succeed", input)).StatusCode);
+        if (restartAfterFailure)
+        {
+            await using var failureReader = new PaymentsDbContext(paymentOptions);
+            var failureTimeout = Stopwatch.StartNew();
+            PaymentLedgerPostingIntent? failed = null;
+            while (failureTimeout.Elapsed < TimeSpan.FromSeconds(10))
+            {
+                failed = await failureReader.PaymentLedgerPostingIntents.AsNoTracking().SingleAsync();
+                if (failed.NextAttemptAt is not null) break;
+                await Task.Delay(50);
+            }
+            Assert.NotNull(failed);
+            Assert.Equal(PaymentLedgerPostingIntentStatus.Pending, failed.Status);
+            Assert.NotNull(failed.NextAttemptAt);
+            factory.Dispose();
+            await using var repair = new LedgerDbContext(ledgerOptions);
+            Assert.Empty(await repair.LedgerTransactions.ToListAsync());
+            await ProvisionAccountsAsync(repair, input);
+        }
+        using var restartedFactory = restartAfterFailure
+            ? new WorkerApiFactory(payments.GetConnectionString(), ledger.GetConnectionString()) : null;
+        using var restartedClient = restartedFactory?.CreateClient();
         await using var reader = new PaymentsDbContext(paymentOptions);
         PaymentLedgerPostingIntent? intent = null;
         var timeout = Stopwatch.StartNew();
@@ -79,6 +102,15 @@ public sealed class PaymentLedgerPostingWorkerTests
             .Sum(x => x.AmountMinorUnits));
         Assert.Equal(10_000, transaction.Entries.Where(x => x.Direction == LedgerDirection.Credit)
             .Sum(x => x.AmountMinorUnits));
+    }
+
+    private static async Task ProvisionAccountsAsync(LedgerDbContext db, PaymentLedgerPostingInput input)
+    {
+        db.LedgerAccounts.AddRange(
+            LedgerAccount.Open(input.ProcessorReceivableAccountId, input.LedgerId, "SGD"),
+            LedgerAccount.Open(input.MerchantPayableAccountId, input.LedgerId, "SGD"),
+            LedgerAccount.Open(input.PlatformRevenueAccountId, input.LedgerId, "SGD"));
+        await db.SaveChangesAsync();
     }
 
     private sealed class WorkerApiFactory(string payments, string ledger) : WebApplicationFactory<Program>
