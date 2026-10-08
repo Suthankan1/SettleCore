@@ -99,3 +99,9 @@
 - Compile-time RED captured; four focused GREEN cases, all 101 Payments unit tests passed; solution build zero warnings/errors. Last full solution 255 passed before this new handler.
 - Application flow is not yet registered or exposed; old status-only handler/endpoint unchanged. Next: verify persisted-state consistency for pre-existing intent retries, then register application flow and require explicit posting body at success endpoint with PostgreSQL API RED tests.
 - Quota last observed: 71% short-window, 89% weekly remaining.
+
+## 2026-10-08 — persisted retry consistency
+- Explicit-input application handler committed/pushed: `543f467`.
+- PostgreSQL RED exposed false successful acknowledgment when identical intent existed but stored payment remained pending. Boundary now checks actual persisted payment success before acknowledging retries, and detaches unsaved status on pre-existing intent paths.
+- GREEN confirms inconsistent pair is rejected and later SaveChanges cannot leak the attempted success. Focused 1 passed; Payments infrastructure 28 passed; solution build zero warnings/errors. Last full solution 255 passed before application and this guard.
+- Next: API body/DI wiring, with PostgreSQL success+intent round-trip, matching retry, changed-payload 409, missing body/invalid input 400 and missing payment 404 tests before dispatch work.

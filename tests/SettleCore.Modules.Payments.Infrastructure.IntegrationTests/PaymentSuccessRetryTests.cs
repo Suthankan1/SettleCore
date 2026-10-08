@@ -121,6 +121,30 @@ public sealed class PaymentSuccessRetryTests
         Assert.Equal(original.FeeAmountMinorUnits, stored.FeeAmountMinorUnits);
     }
 
+    [Fact]
+    public async Task ExistingIntentCannotAcknowledgeUncommittedSuccess()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(postgres.GetConnectionString()).Options;
+        var payment = Payment.Create(100m, "SGD");
+        var intent = PaymentLedgerPostingIntent.Create(payment.Id,
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), "SGD", 10_000, 300);
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        writer.Payments.Add(payment);
+        writer.PaymentLedgerPostingIntents.Add(intent);
+        await writer.SaveChangesAsync();
+        payment.MarkSucceeded();
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new EfPaymentSuccessPersistence(writer).SaveAsync(payment, Copy(intent, 0)));
+        await writer.SaveChangesAsync();
+        await using var reader = new PaymentsDbContext(options);
+        Assert.Equal(PaymentStatus.Pending, (await reader.Payments.SingleAsync()).Status);
+    }
+
     private sealed class ConcurrentSaveBarrier : SaveChangesInterceptor
     {
         private readonly TaskCompletionSource ready = new(TaskCreationOptions.RunContinuationsAsynchronously);

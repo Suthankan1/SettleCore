@@ -34,7 +34,9 @@ public sealed class EfPaymentSuccessPersistence(PaymentsDbContext dbContext)
             .SingleOrDefaultAsync(x => x.PaymentId == intent.PaymentId, cancellationToken);
         if (existing is not null)
         {
+            dbContext.Entry(payment).State = EntityState.Detached;
             EnsureSamePosting(existing, intent);
+            await EnsurePersistedSuccessAsync(payment.Id, cancellationToken);
             return;
         }
 
@@ -61,6 +63,21 @@ public sealed class EfPaymentSuccessPersistence(PaymentsDbContext dbContext)
                 throw;
             }
             EnsureSamePosting(existing, intent);
+            await EnsurePersistedSuccessAsync(payment.Id, cancellationToken);
+        }
+    }
+
+    private async Task EnsurePersistedSuccessAsync(
+        PaymentId paymentId, CancellationToken cancellationToken)
+    {
+        var status = await dbContext.Payments.AsNoTracking()
+            .Where(x => x.Id == paymentId)
+            .Select(x => (PaymentStatus?)x.Status)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (status != PaymentStatus.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "Existing posting intent requires committed payment success.");
         }
     }
 
