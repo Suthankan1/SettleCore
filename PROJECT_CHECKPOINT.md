@@ -132,3 +132,10 @@
 - Compile-time RED captured before repository API. PostgreSQL GREEN verifies repeated/missing acknowledgment, fresh same-context reads, independent reload, all immutable payload fields preserved, later SaveChanges cannot revert completion.
 - Payments infrastructure 29 passed; full solution 264 passed, zero failed/skipped; build zero warnings/errors.
 - Next: focused application dispatch RED tests for port success/failure, durable acknowledgment failure then retry with the same transaction ID, and missing/already-posted no-op behavior. Then real Ledger/PostgreSQL replay integration and pending worker queries.
+
+## 2026-10-08 — 011.7C dispatch application semantics
+- Durable acknowledgment committed/pushed: `e3fb39e`.
+- Added DispatchPaymentLedgerPostingCommand/Handler. Missing intent returns false, posted intent returns true without port call; pending intent posts exact immutable payload, then durably acknowledges.
+- Port/acknowledgment failures propagate and leave pending intent for replay using unchanged transaction identity; no cross-module transaction introduced.
+- Compile-time RED captured. Four focused GREEN cases cover success/order/completed skip, both failure boundaries with retry, and missing intent. Payments unit 106 passed; solution build zero warnings/errors. Last full solution 264 passed before dispatch.
+- Dispatch not registered yet. Next: real composition/PostgreSQL test with separate Payments and Ledger stores, simulate failure after Ledger commit but before Payments acknowledgment, restart scope and prove one transaction/three entries plus posted intent. Then worker pending query and dispatch loop.
