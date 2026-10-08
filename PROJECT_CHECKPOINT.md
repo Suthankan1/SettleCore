@@ -53,3 +53,10 @@
 - Next small step: repository DI registration with focused resolution test, then explicit atomic payment-success/intent boundary and PostgreSQL rollback tests. Standalone AddAsync follows existing SaveChanges conventions; atomic integration must use a shared transaction/boundary rather than independent commits.
 - Posting inputs stay explicit; no accounting routing or fee policy invented. No frontend changes.
 - This checkpoint is included in the 011.6D commit; verify final hash and push status with Git.
+
+## 2026-10-08 — repository registration
+- 011.6D committed and pushed: `35540b5`.
+- Added scoped intent repository registration to AddPaymentsModule. Focused host integration test captured missing-service RED, then GREEN; verifies implementation type and same/different scope lifetime.
+- Full solution 240 passed, zero failed/skipped. Build zero warnings/errors.
+- Next: atomic payment-success + posting-intent persistence boundary, starting with PostgreSQL happy-path and rollback RED tests; then retry/conflict coverage before endpoint changes.
+- Latest quota: 89% short-window and 92% weekly remaining; handback threshold not reached.

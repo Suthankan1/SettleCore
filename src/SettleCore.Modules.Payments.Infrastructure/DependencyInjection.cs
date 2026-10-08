@@ -32,6 +32,10 @@ public static class DependencyInjection
             EfPaymentRepository>();
 
         services.AddScoped<
+            IPaymentLedgerPostingIntentRepository,
+            EfPaymentLedgerPostingIntentRepository>();
+
+        services.AddScoped<
             IPaymentLedgerPostingPort,
             PaymentLedgerPostingAdapter>();
 
