@@ -68,3 +68,9 @@
 - Payments infrastructure 14 passed; full solution 242 passed, zero failed/skipped; full build zero warnings/errors.
 - Next: guard the boundary against mismatched payment/intent identity and invalid status, then matching/conflicting concurrent retries with database-backed tests before application/API wiring.
 - This foundation deliberately does not yet provide retry semantics or DI registration. Keep old status-only flow disconnected from Ledger.
+
+## 2026-10-08 — atomic boundary guards
+- Atomic persistence foundation committed/pushed: `2288914`.
+- Two PostgreSQL assertion RED cases demonstrated mismatched identities and pending status were accepted. Minimal guards now reject both before writing; independent read proves unchanged pending payment and no intent.
+- Focused atomic tests 4 passed; Payments infrastructure 16 passed; full build zero warnings/errors. Last full solution: 242 passed before guards.
+- Next: matching/conflicting retry semantics for atomic persistence, then deterministic concurrent database writers; do not wire endpoint until these pass.

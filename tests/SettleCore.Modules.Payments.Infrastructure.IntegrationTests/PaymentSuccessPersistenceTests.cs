@@ -57,6 +57,34 @@ public sealed class PaymentSuccessPersistenceTests
         Assert.Equal(PaymentLedgerPostingIntentStatus.Pending, storedIntent.Status);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RejectsInvalidPairWithoutPersisting(bool mismatchedId)
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(postgres.GetConnectionString()).Options;
+        var payment = Payment.Create(100m, "SGD");
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        writer.Payments.Add(payment);
+        await writer.SaveChangesAsync();
+        var intent = CreateIntent(mismatchedId ? PaymentId.New() : payment.Id);
+        if (mismatchedId)
+        {
+            payment.MarkSucceeded();
+        }
+        var persistence = new EfPaymentSuccessPersistence(writer);
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => persistence.SaveAsync(payment, intent));
+        await using var reader = new PaymentsDbContext(options);
+        Assert.Equal(PaymentStatus.Pending,
+            (await reader.Payments.SingleAsync()).Status);
+        Assert.Empty(await reader.PaymentLedgerPostingIntents.ToListAsync());
+    }
+
     private static PaymentLedgerPostingIntent CreateIntent(PaymentId paymentId)
     {
         return PaymentLedgerPostingIntent.Create(paymentId,
