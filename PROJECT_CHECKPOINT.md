@@ -197,3 +197,10 @@
 - Focused 2 passed; host integration 68 passed; full solution build zero warnings/errors. Last full solution 272 passed before batch processor.
 - Next: opt-in hosted worker with validated operational settings, default disabled until migrations/connections/accounts are configured; HTTP→automatic dispatch→separate Ledger DB test. Then checkpoint near 10% quota.
 - Remaining backend beyond payment dispatch: audit, provider ingestion/webhooks, additional idempotency, observability and deployment still not completed. No frontend work.
+
+## 2026-10-08 — 011.8E application status query
+- Fresh baseline: mirror and primary checkout clean main at `506f299d8a2aebb5e1bb3b13803afbb555fcc9e6`; GitHub main independently verified identical. Fresh full solution baseline 275 passed, zero failed/skipped.
+- Added read-only GetPaymentLedgerPosting query/result/handler exposing payment ID, stable transaction ID, Pending/Posted status and persisted NextAttemptAt. Missing intent returns null; empty identity is rejected. Cancellation flows to the repository; no write method is used.
+- Compile-time RED captured before implementation. Payments unit tests 110 passed; full solution build zero warnings/errors.
+- This application-only slice is committed separately. No DI or HTTP exposure yet; next small step is PostgreSQL HTTP RED coverage, then scoped registration and GET /payments/{id}/ledger-posting.
+- Quota observed 34% short-window and 74% weekly remaining. Backend only; explicit accounting inputs remain unchanged.
