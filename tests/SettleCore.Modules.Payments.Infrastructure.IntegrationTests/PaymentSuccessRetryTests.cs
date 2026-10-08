@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 using SettleCore.Modules.Payments.Domain;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
@@ -66,6 +67,76 @@ public sealed class PaymentSuccessRetryTests
         Assert.Equal(original.Currency, stored.Currency);
         Assert.Equal(original.GrossAmountMinorUnits, stored.GrossAmountMinorUnits);
         Assert.Equal(original.FeeAmountMinorUnits, stored.FeeAmountMinorUnits);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConcurrentWritersPreserveOneIntentAndUsableContexts(bool conflict)
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(postgres.GetConnectionString()).Options;
+        var payment = Payment.Create(100m, "SGD");
+        var original = PaymentLedgerPostingIntent.Create(payment.Id,
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), "SGD", 10_000, 300);
+        await using (var seed = new PaymentsDbContext(options))
+        {
+            await seed.Database.MigrateAsync();
+            seed.Payments.Add(payment);
+            await seed.SaveChangesAsync();
+        }
+        var writerOptions = new DbContextOptionsBuilder<PaymentsDbContext>(options)
+            .AddInterceptors(new ConcurrentSaveBarrier()).Options;
+        await using var first = new PaymentsDbContext(writerOptions);
+        await using var second = new PaymentsDbContext(writerOptions);
+        var firstPayment = await first.Payments.SingleAsync();
+        var secondPayment = await second.Payments.SingleAsync();
+        firstPayment.MarkSucceeded();
+        secondPayment.MarkSucceeded();
+        var alternative = Copy(original, conflict ? 1 : 0);
+        var results = await Task.WhenAll(
+            Record.ExceptionAsync(() => new EfPaymentSuccessPersistence(first)
+                .SaveAsync(firstPayment, original)),
+            Record.ExceptionAsync(() => new EfPaymentSuccessPersistence(second)
+                .SaveAsync(secondPayment, alternative)));
+        if (conflict)
+        {
+            Assert.Single(results, exception => exception is null);
+            Assert.IsType<PaymentLedgerPostingIntentConflictException>(
+                Assert.Single(results, exception => exception is not null));
+        }
+        else
+        {
+            Assert.All(results, Assert.Null);
+        }
+        await first.SaveChangesAsync();
+        await second.SaveChangesAsync();
+        await using var reader = new PaymentsDbContext(options);
+        Assert.Equal(PaymentStatus.Succeeded, (await reader.Payments.SingleAsync()).Status);
+        var stored = Assert.Single(await reader.PaymentLedgerPostingIntents.ToListAsync());
+        Assert.Contains(stored.TransactionId, new[] { original.TransactionId, alternative.TransactionId });
+        Assert.Equal(original.FeeAmountMinorUnits, stored.FeeAmountMinorUnits);
+    }
+
+    private sealed class ConcurrentSaveBarrier : SaveChangesInterceptor
+    {
+        private readonly TaskCompletionSource ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int arrivals;
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Increment(ref arrivals) == 2)
+            {
+                ready.TrySetResult();
+            }
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(20), cancellationToken);
+            return result;
+        }
     }
 
     private static PaymentLedgerPostingIntent Copy(PaymentLedgerPostingIntent original, int changedField)

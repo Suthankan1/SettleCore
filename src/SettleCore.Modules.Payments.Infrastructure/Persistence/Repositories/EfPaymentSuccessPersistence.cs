@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 using SettleCore.Modules.Payments.Application.Abstractions;
 using SettleCore.Modules.Payments.Domain;
@@ -33,22 +34,50 @@ public sealed class EfPaymentSuccessPersistence(PaymentsDbContext dbContext)
             .SingleOrDefaultAsync(x => x.PaymentId == intent.PaymentId, cancellationToken);
         if (existing is not null)
         {
-            if (existing.TransactionId != intent.TransactionId ||
-                existing.LedgerId != intent.LedgerId ||
-                existing.ProcessorReceivableAccountId != intent.ProcessorReceivableAccountId ||
-                existing.MerchantPayableAccountId != intent.MerchantPayableAccountId ||
-                existing.PlatformRevenueAccountId != intent.PlatformRevenueAccountId ||
-                existing.Currency != intent.Currency ||
-                existing.GrossAmountMinorUnits != intent.GrossAmountMinorUnits ||
-                existing.FeeAmountMinorUnits != intent.FeeAmountMinorUnits)
-            {
-                throw new PaymentLedgerPostingIntentConflictException(payment.Id);
-            }
+            EnsureSamePosting(existing, intent);
             return;
         }
 
         dbContext.Payments.Update(payment);
         await dbContext.PaymentLedgerPostingIntents.AddAsync(intent, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: "PK_payment_ledger_posting_intents"
+            })
+        {
+            // The failed transaction rolled back both writes. Discard only this pair.
+            dbContext.Entry(intent).State = EntityState.Detached;
+            dbContext.Entry(payment).State = EntityState.Detached;
+            existing = await dbContext.PaymentLedgerPostingIntents.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.PaymentId == intent.PaymentId, cancellationToken);
+            if (existing is null)
+            {
+                throw;
+            }
+            EnsureSamePosting(existing, intent);
+        }
+    }
+
+    private static void EnsureSamePosting(
+        PaymentLedgerPostingIntent existing,
+        PaymentLedgerPostingIntent intent)
+    {
+        if (existing.TransactionId != intent.TransactionId ||
+            existing.LedgerId != intent.LedgerId ||
+            existing.ProcessorReceivableAccountId != intent.ProcessorReceivableAccountId ||
+            existing.MerchantPayableAccountId != intent.MerchantPayableAccountId ||
+            existing.PlatformRevenueAccountId != intent.PlatformRevenueAccountId ||
+            existing.Currency != intent.Currency ||
+            existing.GrossAmountMinorUnits != intent.GrossAmountMinorUnits ||
+            existing.FeeAmountMinorUnits != intent.FeeAmountMinorUnits)
+        {
+            throw new PaymentLedgerPostingIntentConflictException(intent.PaymentId);
+        }
     }
 }

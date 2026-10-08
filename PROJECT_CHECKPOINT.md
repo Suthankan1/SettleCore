@@ -82,3 +82,12 @@
 - Rollback test now forces a database length constraint failure, preserving true failed-write rollback coverage after duplicate handling changed.
 - Focused atomic/retry tests 13 passed; Payments infrastructure 25 passed; full solution 253 passed, zero failed/skipped; full build zero warnings/errors.
 - Next: deterministic simultaneous writers, matching and conflicting payloads; catch only the intent primary-key race, reload committed winner and clear failed tracked writes so context can be reused. No endpoint or dispatch wiring yet.
+
+## 2026-10-08 — concurrent posting intent retries
+- Sequential retry protection committed/pushed: `eaf5c2a`.
+- Two deterministic PostgreSQL RED cases forced both writers past missing-intent lookup before SaveChanges; observed raw duplicate key failures.
+- GREEN catches only PK_payment_ledger_posting_intents unique violation, detaches the failed payment/intent pair, reloads committed winner, then compares full immutable payload. Unrelated tracking is retained.
+- Matching writers both succeed; conflicting writers have exactly one success and one Payments conflict. Both contexts can subsequently SaveChanges without replaying failed writes.
+- Focused race cases 2 passed; Payments infrastructure 27 passed; full solution 255 passed, zero failed/skipped; full build zero warnings/errors.
+- Next: application flow accepting explicit posting input, factory validation before status mutation, and one IPaymentSuccessPersistence call. Then DI and PostgreSQL endpoint tests; dispatch/completion later. Old status-only endpoint remains unchanged until that slice.
+- SaveChanges implicit transactions verified; outer explicit transaction/savepoint usage is not covered and should not be introduced without separate tests.
