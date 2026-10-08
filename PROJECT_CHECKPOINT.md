@@ -74,3 +74,11 @@
 - Two PostgreSQL assertion RED cases demonstrated mismatched identities and pending status were accepted. Minimal guards now reject both before writing; independent read proves unchanged pending payment and no intent.
 - Focused atomic tests 4 passed; Payments infrastructure 16 passed; full build zero warnings/errors. Last full solution: 242 passed before guards.
 - Next: matching/conflicting retry semantics for atomic persistence, then deterministic concurrent database writers; do not wire endpoint until these pass.
+
+## 2026-10-08 — sequential posting intent retries
+- Boundary guards committed/pushed: `f55422a`.
+- Added Payments-owned PaymentLedgerPostingIntentConflictException. Atomic boundary returns successfully for identical immutable posting payload; conflicts compare transaction ID, ledger/account IDs, currency, gross and fee independently.
+- Compile-time RED captured for missing conflict type. Nine PostgreSQL GREEN cases cover same-context and fresh-context identical retries plus all eight changed payload fields; one original intent retained.
+- Rollback test now forces a database length constraint failure, preserving true failed-write rollback coverage after duplicate handling changed.
+- Focused atomic/retry tests 13 passed; Payments infrastructure 25 passed; full solution 253 passed, zero failed/skipped; full build zero warnings/errors.
+- Next: deterministic simultaneous writers, matching and conflicting payloads; catch only the intent primary-key race, reload committed winner and clear failed tracked writes so context can be reused. No endpoint or dispatch wiring yet.

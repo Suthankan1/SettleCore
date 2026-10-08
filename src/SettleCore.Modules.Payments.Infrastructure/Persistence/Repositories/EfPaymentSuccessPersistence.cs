@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 using SettleCore.Modules.Payments.Application.Abstractions;
 using SettleCore.Modules.Payments.Domain;
 
@@ -24,6 +26,25 @@ public sealed class EfPaymentSuccessPersistence(PaymentsDbContext dbContext)
         {
             throw new ArgumentException(
                 "Payment must be succeeded.", nameof(payment));
+        }
+
+        var existing = await dbContext.PaymentLedgerPostingIntents
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.PaymentId == intent.PaymentId, cancellationToken);
+        if (existing is not null)
+        {
+            if (existing.TransactionId != intent.TransactionId ||
+                existing.LedgerId != intent.LedgerId ||
+                existing.ProcessorReceivableAccountId != intent.ProcessorReceivableAccountId ||
+                existing.MerchantPayableAccountId != intent.MerchantPayableAccountId ||
+                existing.PlatformRevenueAccountId != intent.PlatformRevenueAccountId ||
+                existing.Currency != intent.Currency ||
+                existing.GrossAmountMinorUnits != intent.GrossAmountMinorUnits ||
+                existing.FeeAmountMinorUnits != intent.FeeAmountMinorUnits)
+            {
+                throw new PaymentLedgerPostingIntentConflictException(payment.Id);
+            }
+            return;
         }
 
         dbContext.Payments.Update(payment);
