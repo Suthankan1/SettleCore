@@ -160,3 +160,11 @@
 - Compile-time RED captured. PostgreSQL GREEN verifies persisted schedule, exact due-time inclusion, fresh-context filtering, missing/posted scheduling false and no revival of completed intents.
 - Payments infrastructure 31 passed; full solution 272 passed, zero failed/skipped; solution build zero warnings/errors.
 - Next: bounded batch processor with fresh scopes per intent, configurable retry delay, failure isolation/logging and cancellation propagation. Then opt-in hosted worker configuration and full HTTP→worker→Ledger verification.
+
+## 2026-10-08 — 011.8C failure-isolated batch processor
+- Durable retry scheduling committed/pushed: `1bdf407`.
+- Added PaymentLedgerPostingBatchProcessor: bounded selection scope, fresh async scope per intent, completed count, structured failure logging and persisted next-attempt scheduling. Retry delay is supplied explicitly; cancellation propagates without retry.
+- Compile-time RED captured. PostgreSQL GREEN proves failing first intent does not block successful second, failed intent not reattempted before due, due retry completes, cancellation leaves all pending and no scheduling writes.
+- Focused 2 passed; host integration 68 passed; full solution build zero warnings/errors. Last full solution 272 passed before batch processor.
+- Next: opt-in hosted worker with validated operational settings, default disabled until migrations/connections/accounts are configured; HTTP→automatic dispatch→separate Ledger DB test. Then checkpoint near 10% quota.
+- Remaining backend beyond payment dispatch: audit, provider ingestion/webhooks, additional idempotency, observability and deployment still not completed. No frontend work.
