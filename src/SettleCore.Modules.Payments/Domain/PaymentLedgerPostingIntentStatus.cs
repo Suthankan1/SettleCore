@@ -2,5 +2,6 @@ namespace SettleCore.Modules.Payments.Domain;
 
 public enum PaymentLedgerPostingIntentStatus
 {
-    Pending
+    Pending,
+    Posted
 }

@@ -119,3 +119,9 @@
 - Added HTTP regression test for decimal.MaxValue conversion: already GREEN through existing converter validation. No production change required; pending status and no persistence call verified.
 - All four focused success endpoint tests pass. Last full solution 261 passed; build clean at previous production slice.
 - Next: Pending → Posted intent completion lifecycle, durable acknowledgment and application dispatch via existing Payments-owned port; prove failed posting stays pending and replay after Ledger success is idempotent.
+
+## 2026-10-08 — 011.7A posting completion lifecycle
+- Amount overflow regression committed/pushed: `37d0de0`.
+- Added Posted status and idempotent MarkPosted transition; all posting identity/account/currency/amount fields remain immutable.
+- Compile-time RED captured before adding lifecycle method/state; focused 2 passed, Payments unit 102 passed; solution build zero warnings/errors. No migration required: status already persisted as unconstrained string.
+- Next: database-backed guarded acknowledgment (pending → posted, repeated acknowledgment safe, missing intent no write), then dispatch via IPaymentLedgerPostingPort and restart/replay tests.

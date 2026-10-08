@@ -51,6 +51,11 @@ public sealed class PaymentLedgerPostingIntent
 
     public PaymentLedgerPostingIntentStatus Status { get; private set; }
 
+    public void MarkPosted()
+    {
+        Status = PaymentLedgerPostingIntentStatus.Posted;
+    }
+
     public static PaymentLedgerPostingIntent Create(
         PaymentId paymentId,
         Guid transactionId,
