@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SettleCore.Modules.Payments.Application.Abstractions;
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.CreatePayment;
+using SettleCore.Modules.Payments.Application.DispatchPaymentLedgerPosting;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
 using SettleCore.Modules.Payments.Application.GetPaymentByProviderReference;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
@@ -41,6 +42,7 @@ public static class DependencyInjection
 
         services.AddScoped<IPaymentSuccessPersistence, EfPaymentSuccessPersistence>();
         services.AddScoped<RecordPaymentSuccessHandler>();
+        services.AddScoped<DispatchPaymentLedgerPostingHandler>();
 
         services.AddScoped<CreatePaymentHandler>();
         services.AddScoped<GetPaymentByIdHandler>();

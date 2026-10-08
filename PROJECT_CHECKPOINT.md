@@ -139,3 +139,11 @@
 - Port/acknowledgment failures propagate and leave pending intent for replay using unchanged transaction identity; no cross-module transaction introduced.
 - Compile-time RED captured. Four focused GREEN cases cover success/order/completed skip, both failure boundaries with retry, and missing intent. Payments unit 106 passed; solution build zero warnings/errors. Last full solution 264 passed before dispatch.
 - Dispatch not registered yet. Next: real composition/PostgreSQL test with separate Payments and Ledger stores, simulate failure after Ledger commit but before Payments acknowledgment, restart scope and prove one transaction/three entries plus posted intent. Then worker pending query and dispatch loop.
+
+## 2026-10-08 — 011.7D real cross-store replay
+- Dispatch application semantics committed/pushed: `080cb48`.
+- Registered scoped dispatch handler. PostgreSQL composition RED captured missing registration; GREEN exercises actual Payments repository, Ledger adapter/handler/repository and separate database stores.
+- Happy dispatch and failure after Ledger commit/before Payments acknowledgment both verified. Fresh-scope replay finishes pending intent; retains one transaction and exactly three correct balanced entries, stable transaction/ledger identities.
+- Focused 2 passed; host integration 66 passed; full solution 270 passed, zero failed/skipped; full build zero warnings/errors.
+- Next: bounded pending query for worker, followed by failure isolation/retry scheduling and hosted dispatch. Avoid starvation from permanently failing intents; no fee/account routing defaults.
+- Latest quota observed: 44% short-window and 85% weekly remaining; stop new changes around 10% remaining.
