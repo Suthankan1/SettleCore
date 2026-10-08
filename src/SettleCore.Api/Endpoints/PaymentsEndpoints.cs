@@ -1,5 +1,6 @@
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.CreatePayment;
+using SettleCore.Modules.Payments.Application.GetPaymentLedgerPosting;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
 using SettleCore.Modules.Payments.Application.GetPaymentByProviderReference;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
@@ -133,6 +134,32 @@ public static class PaymentsEndpoints
                 StatusCodes.Status404NotFound)
             .ProducesValidationProblem(
                 StatusCodes.Status400BadRequest);
+
+        endpoints.MapGet(
+                "/payments/{paymentId:guid}/ledger-posting",
+                async Task<IResult> (
+                    Guid paymentId,
+                    GetPaymentLedgerPostingHandler handler,
+                    CancellationToken cancellationToken) =>
+                {
+                    try
+                    {
+                        var result = await handler.HandleAsync(
+                            new GetPaymentLedgerPostingQuery(paymentId), cancellationToken);
+                        return result is null ? Results.NotFound() : Results.Ok(result);
+                    }
+                    catch (ArgumentException exception)
+                    {
+                        return Results.ValidationProblem(new Dictionary<string, string[]>
+                        {
+                            [exception.ParamName ?? "paymentId"] = [exception.Message]
+                        });
+                    }
+                })
+            .WithName("GetPaymentLedgerPosting")
+            .Produces<GetPaymentLedgerPostingResult>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
 
         endpoints.MapPost(
                 "/payments/{paymentId:guid}/succeed",

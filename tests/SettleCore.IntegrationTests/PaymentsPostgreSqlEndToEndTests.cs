@@ -7,6 +7,9 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SettleCore.Modules.Payments.Application.CreatePayment;
+using SettleCore.Modules.Payments.Application.GetPaymentLedgerPosting;
+using SettleCore.Modules.Payments.Application.Abstractions;
+using SettleCore.Modules.Payments.Domain;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
@@ -278,6 +281,70 @@ public sealed class PaymentsPostgreSqlEndToEndTests
         Assert.Equal(10_000, stored.GrossAmountMinorUnits);
         Assert.Equal(300, stored.FeeAmountMinorUnits);
         Assert.Equal(SettleCore.Modules.Payments.Domain.PaymentLedgerPostingIntentStatus.Pending, stored.Status);
+    }
+
+    [Fact]
+    public async Task PostingStatusLookupReflectsDurableLifecycleWithoutWrites()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(postgres.GetConnectionString()).Options;
+        await using (var setup = new PaymentsDbContext(options))
+        {
+            await setup.Database.MigrateAsync();
+        }
+        using var factory = new PaymentsApiFactory(postgres.GetConnectionString());
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false
+        });
+        var created = Assert.IsType<CreatePaymentResult>(await (await client.PostAsJsonAsync(
+            "/payments", new { amount = 100m, currency = "SGD" })).Content.ReadFromJsonAsync<CreatePaymentResult>());
+        var url = $"/payments/{created.PaymentId}/ledger-posting";
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(
+            $"/payments/{Guid.NewGuid()}/ledger-posting")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync(
+            $"/payments/{Guid.Empty}/ledger-posting")).StatusCode);
+        var input = new PaymentLedgerPostingInput(Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 300);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            $"/payments/{created.PaymentId}/succeed", input)).StatusCode);
+        var pendingResponse = await client.GetAsync(url);
+        Assert.Equal(HttpStatusCode.OK, pendingResponse.StatusCode);
+        var pending = Assert.IsType<GetPaymentLedgerPostingResult>(
+            await pendingResponse.Content.ReadFromJsonAsync<GetPaymentLedgerPostingResult>());
+        Assert.Equal(created.PaymentId, pending.PaymentId);
+        Assert.Equal(input.TransactionId, pending.TransactionId);
+        Assert.Equal("Pending", pending.Status);
+        Assert.Null(pending.NextAttemptAt);
+        var due = new DateTimeOffset(2026, 10, 9, 1, 2, 3, TimeSpan.Zero);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IPaymentLedgerPostingIntentRepository>();
+            Assert.True(await repository.ScheduleRetryAsync(
+                PaymentId.From(created.PaymentId), due));
+        }
+        var scheduled = await client.GetFromJsonAsync<GetPaymentLedgerPostingResult>(url);
+        Assert.NotNull(scheduled);
+        Assert.Equal("Pending", scheduled.Status);
+        Assert.Equal(due, scheduled.NextAttemptAt);
+        using (var scope = factory.Services.CreateScope())
+        {
+            Assert.True(await scope.ServiceProvider.GetRequiredService<IPaymentLedgerPostingIntentRepository>()
+                .MarkPostedAsync(PaymentId.From(created.PaymentId)));
+        }
+        var posted = await client.GetFromJsonAsync<GetPaymentLedgerPostingResult>(url);
+        Assert.NotNull(posted);
+        Assert.Equal("Posted", posted.Status);
+        Assert.Equal(input.TransactionId, posted.TransactionId);
+        await using var reader = new PaymentsDbContext(options);
+        var stored = Assert.Single(await reader.PaymentLedgerPostingIntents.ToListAsync());
+        Assert.Equal(SettleCore.Modules.Payments.Domain.PaymentLedgerPostingIntentStatus.Posted, stored.Status);
+        Assert.Equal(stored.NextAttemptAt, posted.NextAttemptAt);
+        Assert.Equal(300, stored.FeeAmountMinorUnits);
+        Assert.Equal(10_000, stored.GrossAmountMinorUnits);
     }
 
     private sealed class PaymentsApiFactory(

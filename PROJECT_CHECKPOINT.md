@@ -204,3 +204,11 @@
 - Compile-time RED captured before implementation. Payments unit tests 110 passed; full solution build zero warnings/errors.
 - This application-only slice is committed separately. No DI or HTTP exposure yet; next small step is PostgreSQL HTTP RED coverage, then scoped registration and GET /payments/{id}/ledger-posting.
 - Quota observed 34% short-window and 74% weekly remaining. Backend only; explicit accounting inputs remain unchanged.
+
+## 2026-10-08 — 011.8E HTTP posting status
+- Application query committed/pushed as `15f07ed`.
+- Added scoped query registration and GET /payments/{paymentId}/ledger-posting. Response includes stable transaction ID, Pending/Posted status and raw persisted NextAttemptAt; 404 when no intent exists and 400 for empty payment ID.
+- PostgreSQL HTTP assertion RED captured (404 instead of validation/lookup response). GREEN round-trips HTTP-created payment and explicit success intent, then persisted retry scheduling and completion, verifies identity/amounts retained. Read does not dispatch or write.
+- Focused test 1 passed; full solution 280 passed, zero failed/skipped; solution build zero warnings/errors. No migration or frontend changes.
+- Next: scheduling-failure isolation regression. A retry-schedule exception currently escapes the batch catch and prevents later intents from processing; prove failure with PostgreSQL-backed batch test before minimal fix. Preserve cancellation propagation.
+- This checkpoint travels with the separate endpoint commit; exact hash from Git. Durable progress memory is this tracked file; account-wide ChatGPT memory editing is unavailable in these tools.
