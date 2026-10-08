@@ -9,7 +9,8 @@ namespace SettleCore.Modules.Payments.Infrastructure.Dispatch;
 public sealed partial class PaymentLedgerPostingBatchProcessor(
     IServiceScopeFactory scopeFactory,
     TimeProvider clock,
-    ILogger<PaymentLedgerPostingBatchProcessor> logger)
+    ILogger<PaymentLedgerPostingBatchProcessor> logger,
+    PaymentLedgerPostingMetrics metrics)
 {
     public async Task<int> ProcessAsync(int batchSize, TimeSpan retryDelay,
         CancellationToken cancellationToken = default)
@@ -31,14 +32,17 @@ public sealed partial class PaymentLedgerPostingBatchProcessor(
             var handler = scope.ServiceProvider.GetRequiredService<DispatchPaymentLedgerPostingHandler>();
             try
             {
+                metrics.RecordAttempt();
                 if (await handler.HandleAsync(new DispatchPaymentLedgerPostingCommand(paymentId.Value),
                     cancellationToken))
                 {
                     completed++;
+                    metrics.RecordCompleted();
                 }
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
+                metrics.RecordFailure();
                 PostingFailed(logger, exception, paymentId.Value);
                 var repository = scope.ServiceProvider
                     .GetRequiredService<IPaymentLedgerPostingIntentRepository>();
@@ -49,6 +53,7 @@ public sealed partial class PaymentLedgerPostingBatchProcessor(
                 }
                 catch (Exception schedulingException) when (!cancellationToken.IsCancellationRequested)
                 {
+                    metrics.RecordRetrySchedulingFailure();
                     RetrySchedulingFailed(logger, schedulingException, paymentId.Value);
                 }
             }

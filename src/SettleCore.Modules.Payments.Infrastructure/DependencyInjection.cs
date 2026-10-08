@@ -44,6 +44,8 @@ public static class DependencyInjection
             PaymentLedgerPostingAdapter>();
 
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddMetrics();
+        services.AddSingleton<PaymentLedgerPostingMetrics>();
         services.AddSingleton<PaymentLedgerPostingBatchProcessor>();
         services.AddScoped<IPaymentSuccessPersistence, EfPaymentSuccessPersistence>();
         services.AddScoped<RecordPaymentSuccessHandler>();

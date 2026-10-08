@@ -226,3 +226,11 @@
 - Test-first regression was GREEN on existing production code; no artificial RED or production change made.
 - Focused worker tests 2 passed; host integration 73 passed; build zero warnings/errors. Last full solution 280 passed before three new host cases.
 - Next: operational counters for attempts/completions/posting failures/retry-scheduling failures using .NET metrics, with focused behavior RED before instrumentation. Quota last observed 22% short-window/72% weekly remaining.
+
+## 2026-10-08 — posting operational counters
+- Hosted restart coverage committed/pushed as `d901673`.
+- Added IMeterFactory-managed SettleCore.Payments meter, singleton instrumentation and counters: settlecore.payment_posting.attempts, .completed, .failures and .retry_scheduling_failures. Added matching Microsoft.Extensions.Diagnostics 10.0.12 infrastructure dependency.
+- Counters report processing outcomes, not unique financial transactions; concurrent/already-posted replays may count a successful outcome. No payment/account IDs or unbounded metric tags. Metrics are available to .NET listeners; no external exporter configured.
+- Compile-time RED captured before instrumentation. PostgreSQL-backed listener verifies exact counters through failure/scheduling failure/recovery and excludes host cancellation from failure counters.
+- Focused batch tests 5 passed before extra shutdown metric case; full solution 285 passed including both metric cases, zero failed/skipped; build zero warnings/errors.
+- Next: verify disabled-by-default and invalid worker operational settings at actual host startup, then handoff near quota threshold. Durable audit remains a future backend slice; provider-specific ingestion still requires actual requirements.

@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -102,6 +103,59 @@ public sealed class PaymentLedgerPostingBatchProcessorTests : IAsyncLifetime
         });
     }
 
+    [Fact]
+    public async Task MetricsDistinguishPostingFailureSchedulingFailureAndRecovery()
+    {
+        var clock = new ManualClock();
+        var port = new RecordingPort { FailFirst = true };
+        using var provider = await CreateProviderAsync(port, clock, failScheduling: true);
+        var meter = provider.GetRequiredService<IMeterFactory>().Create(PaymentLedgerPostingMetrics.MeterName);
+        var counts = new Dictionary<string, long>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, current) =>
+        {
+            if (ReferenceEquals(instrument.Meter, meter)) current.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
+        {
+            Assert.Empty(tags.ToArray());
+            counts[instrument.Name] = counts.GetValueOrDefault(instrument.Name) + measurement;
+        });
+        listener.Start();
+        Assert.Equal(1, await Processor(provider, clock).ProcessAsync(10, TimeSpan.FromMinutes(1)));
+        port.FailFirst = false;
+        Assert.Equal(1, await Processor(provider, clock).ProcessAsync(10, TimeSpan.FromMinutes(1)));
+        Assert.Equal(3, counts["settlecore.payment_posting.attempts"]);
+        Assert.Equal(2, counts["settlecore.payment_posting.completed"]);
+        Assert.Equal(1, counts["settlecore.payment_posting.failures"]);
+        Assert.Equal(1, counts["settlecore.payment_posting.retry_scheduling_failures"]);
+    }
+
+    [Fact]
+    public async Task ShutdownDoesNotCountAsPostingFailure()
+    {
+        var clock = new ManualClock();
+        using var cancellation = new CancellationTokenSource();
+        var port = new RecordingPort { Cancel = cancellation };
+        using var provider = await CreateProviderAsync(port, clock);
+        var meter = provider.GetRequiredService<IMeterFactory>().Create(PaymentLedgerPostingMetrics.MeterName);
+        var counts = new Dictionary<string, long>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, current) =>
+        {
+            if (ReferenceEquals(instrument.Meter, meter)) current.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, measurement, _, _) =>
+            counts[instrument.Name] = counts.GetValueOrDefault(instrument.Name) + measurement);
+        listener.Start();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Processor(provider, clock)
+            .ProcessAsync(10, TimeSpan.FromMinutes(1), cancellation.Token));
+        Assert.Equal(1, counts["settlecore.payment_posting.attempts"]);
+        Assert.Equal(0, counts.GetValueOrDefault("settlecore.payment_posting.completed"));
+        Assert.Equal(0, counts.GetValueOrDefault("settlecore.payment_posting.failures"));
+        Assert.Equal(0, counts.GetValueOrDefault("settlecore.payment_posting.retry_scheduling_failures"));
+    }
+
     private async Task<ServiceProvider> CreateProviderAsync(RecordingPort port, ManualClock clock,
         bool failScheduling = false, CancellationTokenSource? scheduleCancellation = null)
     {
@@ -138,7 +192,8 @@ public sealed class PaymentLedgerPostingBatchProcessorTests : IAsyncLifetime
 
     private static PaymentLedgerPostingBatchProcessor Processor(ServiceProvider provider, ManualClock clock)
         => new(provider.GetRequiredService<IServiceScopeFactory>(), clock,
-            NullLogger<PaymentLedgerPostingBatchProcessor>.Instance);
+            NullLogger<PaymentLedgerPostingBatchProcessor>.Instance,
+            provider.GetRequiredService<PaymentLedgerPostingMetrics>());
 
     private sealed class SchedulingFailureRepository(IPaymentLedgerPostingIntentRepository inner,
         CancellationTokenSource? cancellation) : IPaymentLedgerPostingIntentRepository
