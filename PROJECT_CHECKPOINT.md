@@ -91,3 +91,11 @@
 - Focused race cases 2 passed; Payments infrastructure 27 passed; full solution 255 passed, zero failed/skipped; full build zero warnings/errors.
 - Next: application flow accepting explicit posting input, factory validation before status mutation, and one IPaymentSuccessPersistence call. Then DI and PostgreSQL endpoint tests; dispatch/completion later. Old status-only endpoint remains unchanged until that slice.
 - SaveChanges implicit transactions verified; outer explicit transaction/savepoint usage is not covered and should not be introduced without separate tests.
+
+## 2026-10-08 — explicit-input application flow
+- Concurrent retry recovery committed/pushed: `2da1630`.
+- Added RecordPaymentSuccessCommand/Handler accepting caller-supplied PaymentLedgerPostingInput. Uses stored amount/currency and established request factory; validates before status mutation; saves payment and full pending intent through one atomic boundary call.
+- Succeeded retries avoid calling domain MarkSucceeded again and are checked by persistence. Missing payment returns null; invalid fee leaves pending status and makes no persistence call.
+- Compile-time RED captured; four focused GREEN cases, all 101 Payments unit tests passed; solution build zero warnings/errors. Last full solution 255 passed before this new handler.
+- Application flow is not yet registered or exposed; old status-only handler/endpoint unchanged. Next: verify persisted-state consistency for pre-existing intent retries, then register application flow and require explicit posting body at success endpoint with PostgreSQL API RED tests.
+- Quota last observed: 71% short-window, 89% weekly remaining.
