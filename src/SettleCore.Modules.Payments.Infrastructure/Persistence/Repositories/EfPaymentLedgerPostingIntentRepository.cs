@@ -5,7 +5,7 @@ using SettleCore.Modules.Payments.Domain;
 namespace SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
 
 public sealed class EfPaymentLedgerPostingIntentRepository(
-    PaymentsDbContext dbContext)
+    PaymentsDbContext dbContext, TimeProvider? timeProvider = null)
     : IPaymentLedgerPostingIntentRepository
 {
     public async Task AddAsync(
@@ -47,12 +47,29 @@ public sealed class EfPaymentLedgerPostingIntentRepository(
         CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         return await dbContext.PaymentLedgerPostingIntents.AsNoTracking()
             .Where(intent => intent.Status == PaymentLedgerPostingIntentStatus.Pending &&
+                (intent.NextAttemptAt == null || intent.NextAttemptAt <= now) &&
                 dbContext.Payments.Any(payment => payment.Id == intent.PaymentId &&
                     payment.Status == PaymentStatus.Succeeded))
-            .OrderBy(intent => intent.PaymentId)
+            .OrderBy(intent => intent.NextAttemptAt.HasValue)
+            .ThenBy(intent => intent.NextAttemptAt)
+            .ThenBy(intent => intent.PaymentId)
             .Take(limit)
             .ToListAsync(cancellationToken);
+    }
+    public async Task<bool> ScheduleRetryAsync(
+        PaymentId paymentId,
+        DateTimeOffset nextAttemptAt,
+        CancellationToken cancellationToken = default)
+    {
+        var utcNextAttempt = nextAttemptAt.ToUniversalTime();
+        var affected = await dbContext.PaymentLedgerPostingIntents
+            .Where(intent => intent.PaymentId == paymentId &&
+                intent.Status == PaymentLedgerPostingIntentStatus.Pending)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                intent => intent.NextAttemptAt, utcNextAttempt), cancellationToken);
+        return affected == 1;
     }
 }

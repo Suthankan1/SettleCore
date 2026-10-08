@@ -13,6 +13,9 @@ internal sealed class PaymentLedgerPostingIntentConfiguration
         builder.ToTable("payment_ledger_posting_intents");
 
         builder.HasKey(x => x.PaymentId);
+        builder.Property(x => x.NextAttemptAt).HasColumnName("next_attempt_at");
+        builder.HasIndex(x => new { x.Status, x.NextAttemptAt, x.PaymentId })
+            .HasDatabaseName("ix_payment_ledger_posting_intents_due");
 
         builder.Property(x => x.PaymentId)
             .HasColumnName("payment_id")

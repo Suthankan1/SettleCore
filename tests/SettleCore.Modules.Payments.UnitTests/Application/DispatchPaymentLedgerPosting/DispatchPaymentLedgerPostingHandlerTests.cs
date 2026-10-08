@@ -68,6 +68,8 @@ public sealed class DispatchPaymentLedgerPostingHandlerTests
         public bool FailAcknowledgment { get; set; }
         public Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(
             int limit, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> ScheduleRetryAsync(PaymentId paymentId, DateTimeOffset nextAttemptAt,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task AddAsync(PaymentLedgerPostingIntent intent, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
         public Task<PaymentLedgerPostingIntent?> GetByPaymentIdAsync(PaymentId paymentId,

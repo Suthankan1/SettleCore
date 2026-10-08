@@ -142,4 +142,41 @@ public sealed class EfPaymentLedgerPostingIntentRepositoryTests
         Assert.Equal(new[] { payments[0].Id, payments[1].Id }, all.Select(x => x.PaymentId));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => repository.GetPendingAsync(0));
     }
+    [Fact]
+    public async Task ScheduledRetryIsDurableExcludedUntilDueAndCannotRevivePostedIntent()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        var payment = Payment.Create(100m, "SGD");
+        payment.MarkSucceeded();
+        var intent = PaymentLedgerPostingIntent.Create(payment.Id, Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 10_000, 300);
+        writer.Payments.Add(payment);
+        writer.PaymentLedgerPostingIntents.Add(intent);
+        await writer.SaveChangesAsync();
+        var clock = new ManualClock(new DateTimeOffset(2026, 10, 8, 0, 0, 0, TimeSpan.Zero));
+        var repository = new EfPaymentLedgerPostingIntentRepository(writer, clock);
+        var nextAttempt = clock.Now.AddMinutes(1);
+        Assert.True(await repository.ScheduleRetryAsync(payment.Id, nextAttempt));
+        Assert.Empty(await repository.GetPendingAsync(10));
+        await using var reader = new PaymentsDbContext(options);
+        var freshRepository = new EfPaymentLedgerPostingIntentRepository(reader, clock);
+        Assert.Equal(nextAttempt, (await freshRepository.GetByPaymentIdAsync(payment.Id))!.NextAttemptAt);
+        clock.Now = nextAttempt;
+        Assert.Single(await freshRepository.GetPendingAsync(10));
+        Assert.True(await repository.MarkPostedAsync(payment.Id));
+        Assert.False(await repository.ScheduleRetryAsync(payment.Id, nextAttempt.AddMinutes(1)));
+        Assert.False(await repository.ScheduleRetryAsync(PaymentId.New(), nextAttempt));
+        Assert.Empty(await freshRepository.GetPendingAsync(10));
+        Assert.Equal(PaymentLedgerPostingIntentStatus.Posted,
+            (await freshRepository.GetByPaymentIdAsync(payment.Id))!.Status);
+    }
+
+    private sealed class ManualClock(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
 }

@@ -17,4 +17,8 @@ public interface IPaymentLedgerPostingIntentRepository
     Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(
         int limit,
         CancellationToken cancellationToken = default);
+    Task<bool> ScheduleRetryAsync(
+        PaymentId paymentId,
+        DateTimeOffset nextAttemptAt,
+        CancellationToken cancellationToken = default);
 }

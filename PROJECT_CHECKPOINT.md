@@ -153,3 +153,10 @@
 - Added bounded ordered GetPendingAsync repository query, selecting pending intents only for committed succeeded payments. Posted intents, pending payments and orphan intents excluded; nonpositive limit rejected.
 - Compile-time RED captured; PostgreSQL GREEN verifies bounds/order and all exclusions. Payments infrastructure 30 passed; solution build zero warnings/errors. Last full solution 270 passed before query.
 - Next: durable next-attempt scheduling with due filtering and an index, tested before hosted worker. Failed records must not monopolize the bounded queue. Operational retry delay remains configurable; accounting inputs stay explicit.
+
+## 2026-10-08 — 011.8B durable retry schedule
+- Pending worker query committed/pushed: `4ff8988`.
+- Added nullable UTC NextAttemptAt, guarded ScheduleRetryAsync, due-time filtering with injectable TimeProvider, and status/next-attempt/payment index. Migration adds only the intent timestamp column and index; snapshot updated. Generated index array adjusted to satisfy strict analyzer.
+- Compile-time RED captured. PostgreSQL GREEN verifies persisted schedule, exact due-time inclusion, fresh-context filtering, missing/posted scheduling false and no revival of completed intents.
+- Payments infrastructure 31 passed; full solution 272 passed, zero failed/skipped; solution build zero warnings/errors.
+- Next: bounded batch processor with fresh scopes per intent, configurable retry delay, failure isolation/logging and cancellation propagation. Then opt-in hosted worker configuration and full HTTP→worker→Ledger verification.

@@ -114,6 +114,8 @@ public sealed class PaymentLedgerDispatchPostgreSqlTests
     {
         public Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(
             int limit, CancellationToken cancellationToken = default) => inner.GetPendingAsync(limit, cancellationToken);
+        public Task<bool> ScheduleRetryAsync(PaymentId paymentId, DateTimeOffset nextAttemptAt,
+            CancellationToken cancellationToken = default) => inner.ScheduleRetryAsync(paymentId, nextAttemptAt, cancellationToken);
         public Task AddAsync(PaymentLedgerPostingIntent intent, CancellationToken cancellationToken = default)
             => inner.AddAsync(intent, cancellationToken);
         public Task<PaymentLedgerPostingIntent?> GetByPaymentIdAsync(PaymentId paymentId,
