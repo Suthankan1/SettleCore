@@ -125,3 +125,10 @@
 - Added Posted status and idempotent MarkPosted transition; all posting identity/account/currency/amount fields remain immutable.
 - Compile-time RED captured before adding lifecycle method/state; focused 2 passed, Payments unit 102 passed; solution build zero warnings/errors. No migration required: status already persisted as unconstrained string.
 - Next: database-backed guarded acknowledgment (pending → posted, repeated acknowledgment safe, missing intent no write), then dispatch via IPaymentLedgerPostingPort and restart/replay tests.
+
+## 2026-10-08 — 011.7B durable acknowledgment
+- Completion lifecycle committed/pushed: `6ed1833`.
+- Added repository MarkPostedAsync: guarded status-only database update, idempotent acknowledgment returns true, missing intent returns false. Reads use AsNoTracking so acknowledgment cannot be hidden by previously tracked pending objects.
+- Compile-time RED captured before repository API. PostgreSQL GREEN verifies repeated/missing acknowledgment, fresh same-context reads, independent reload, all immutable payload fields preserved, later SaveChanges cannot revert completion.
+- Payments infrastructure 29 passed; full solution 264 passed, zero failed/skipped; build zero warnings/errors.
+- Next: focused application dispatch RED tests for port success/failure, durable acknowledgment failure then retry with the same transaction ID, and missing/already-posted no-op behavior. Then real Ledger/PostgreSQL replay integration and pending worker queries.

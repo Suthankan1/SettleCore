@@ -25,8 +25,21 @@ public sealed class EfPaymentLedgerPostingIntentRepository(
         PaymentId paymentId,
         CancellationToken cancellationToken = default)
     {
-        return dbContext.PaymentLedgerPostingIntents.SingleOrDefaultAsync(
+        return dbContext.PaymentLedgerPostingIntents.AsNoTracking().SingleOrDefaultAsync(
             intent => intent.PaymentId == paymentId,
             cancellationToken);
+    }
+    public async Task<bool> MarkPostedAsync(
+        PaymentId paymentId,
+        CancellationToken cancellationToken = default)
+    {
+        var affected = await dbContext.PaymentLedgerPostingIntents
+            .Where(intent => intent.PaymentId == paymentId &&
+                (intent.Status == PaymentLedgerPostingIntentStatus.Pending ||
+                 intent.Status == PaymentLedgerPostingIntentStatus.Posted))
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                intent => intent.Status, PaymentLedgerPostingIntentStatus.Posted),
+                cancellationToken);
+        return affected == 1;
     }
 }

@@ -85,4 +85,34 @@ public sealed class EfPaymentLedgerPostingIntentRepositoryTests
             PaymentLedgerPostingIntentStatus.Pending,
             reloaded.Status);
     }
+    [Fact]
+    public async Task CompletionIsDurableIdempotentAndChangesOnlyStatus()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        var intent = PaymentLedgerPostingIntent.Create(PaymentId.New(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 10_000, 300);
+        var repository = new EfPaymentLedgerPostingIntentRepository(writer);
+        await repository.AddAsync(intent);
+        Assert.True(await repository.MarkPostedAsync(intent.PaymentId));
+        Assert.True(await repository.MarkPostedAsync(intent.PaymentId));
+        Assert.False(await repository.MarkPostedAsync(PaymentId.New()));
+        Assert.Equal(PaymentLedgerPostingIntentStatus.Posted,
+            (await repository.GetByPaymentIdAsync(intent.PaymentId))!.Status);
+        await writer.SaveChangesAsync();
+        await using var reader = new PaymentsDbContext(options);
+        var stored = await reader.PaymentLedgerPostingIntents.SingleAsync();
+        Assert.Equal(PaymentLedgerPostingIntentStatus.Posted, stored.Status);
+        Assert.Equal(intent.PaymentId, stored.PaymentId);
+        Assert.Equal(intent.TransactionId, stored.TransactionId);
+        Assert.Equal(intent.LedgerId, stored.LedgerId);
+        Assert.Equal(intent.ProcessorReceivableAccountId, stored.ProcessorReceivableAccountId);
+        Assert.Equal(intent.MerchantPayableAccountId, stored.MerchantPayableAccountId);
+        Assert.Equal(intent.PlatformRevenueAccountId, stored.PlatformRevenueAccountId);
+        Assert.Equal(intent.Currency, stored.Currency);
+        Assert.Equal(intent.GrossAmountMinorUnits, stored.GrossAmountMinorUnits);
+        Assert.Equal(intent.FeeAmountMinorUnits, stored.FeeAmountMinorUnits);
+    }
 }
