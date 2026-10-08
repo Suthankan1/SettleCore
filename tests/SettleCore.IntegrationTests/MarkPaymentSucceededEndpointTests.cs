@@ -118,6 +118,23 @@ public sealed class MarkPaymentSucceededEndpointTests
             response.StatusCode);
     }
 
+    [Fact]
+    public async Task UnrepresentableLedgerAmountReturnsBadRequestWithoutWriting()
+    {
+        var payment = Payment.Create(decimal.MaxValue, "SGD");
+        using var factory = new PaymentsApiFactory(payment);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false
+        });
+        var response = await client.PostAsJsonAsync($"/payments/{payment.Id.Value}/succeed",
+            new PaymentLedgerPostingInput(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                Guid.NewGuid(), Guid.NewGuid(), 300));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(PaymentStatus.Pending, payment.Status);
+        Assert.Null(factory.Repository.UpdatedPayment);
+    }
+
     private sealed class PaymentsApiFactory(
         Payment? payment)
         : WebApplicationFactory<Program>

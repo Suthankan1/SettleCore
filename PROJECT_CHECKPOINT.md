@@ -113,3 +113,9 @@
 - Existing HTTP tests now send explicit inputs; already-succeeded explicit retry is allowed. Old status-only application handler remains available but endpoint does not use it or directly call Ledger.
 - Focused API suite 9 passed; host integration 63 passed; full solution 261 passed, zero failed/skipped; build zero warnings/errors.
 - Next: map amount conversion overflow to HTTP validation failure without mutation; then durable intent completion/dispatch semantics and retry after Ledger success but before acknowledgment. No accounting or fee defaults introduced.
+
+## 2026-10-08 — amount overflow regression
+- Explicit-input success endpoint committed/pushed: `ae06de7`.
+- Added HTTP regression test for decimal.MaxValue conversion: already GREEN through existing converter validation. No production change required; pending status and no persistence call verified.
+- All four focused success endpoint tests pass. Last full solution 261 passed; build clean at previous production slice.
+- Next: Pending → Posted intent completion lifecycle, durable acknowledgment and application dispatch via existing Payments-owned port; prove failed posting stays pending and replay after Ledger success is idempotent.
