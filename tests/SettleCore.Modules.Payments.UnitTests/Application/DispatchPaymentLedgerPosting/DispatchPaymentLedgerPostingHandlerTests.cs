@@ -66,6 +66,8 @@ public sealed class DispatchPaymentLedgerPostingHandlerTests
         public PaymentLedgerPostingIntent? Intent { get; } = intent;
         public int Acknowledgments { get; private set; }
         public bool FailAcknowledgment { get; set; }
+        public Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(
+            int limit, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task AddAsync(PaymentLedgerPostingIntent intent, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
         public Task<PaymentLedgerPostingIntent?> GetByPaymentIdAsync(PaymentId paymentId,

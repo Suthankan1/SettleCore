@@ -14,4 +14,7 @@ public interface IPaymentLedgerPostingIntentRepository
     Task<bool> MarkPostedAsync(
         PaymentId paymentId,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(
+        int limit,
+        CancellationToken cancellationToken = default);
 }

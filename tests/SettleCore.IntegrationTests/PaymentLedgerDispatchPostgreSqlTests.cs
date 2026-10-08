@@ -112,6 +112,8 @@ public sealed class PaymentLedgerDispatchPostgreSqlTests
         EfPaymentLedgerPostingIntentRepository inner, FailureGate failure)
         : IPaymentLedgerPostingIntentRepository
     {
+        public Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(
+            int limit, CancellationToken cancellationToken = default) => inner.GetPendingAsync(limit, cancellationToken);
         public Task AddAsync(PaymentLedgerPostingIntent intent, CancellationToken cancellationToken = default)
             => inner.AddAsync(intent, cancellationToken);
         public Task<PaymentLedgerPostingIntent?> GetByPaymentIdAsync(PaymentId paymentId,

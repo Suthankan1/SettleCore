@@ -42,4 +42,17 @@ public sealed class EfPaymentLedgerPostingIntentRepository(
                 cancellationToken);
         return affected == 1;
     }
+    public async Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+        return await dbContext.PaymentLedgerPostingIntents.AsNoTracking()
+            .Where(intent => intent.Status == PaymentLedgerPostingIntentStatus.Pending &&
+                dbContext.Payments.Any(payment => payment.Id == intent.PaymentId &&
+                    payment.Status == PaymentStatus.Succeeded))
+            .OrderBy(intent => intent.PaymentId)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
 }

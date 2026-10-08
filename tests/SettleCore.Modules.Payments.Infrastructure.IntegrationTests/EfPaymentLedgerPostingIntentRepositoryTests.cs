@@ -115,4 +115,31 @@ public sealed class EfPaymentLedgerPostingIntentRepositoryTests
         Assert.Equal(intent.GrossAmountMinorUnits, stored.GrossAmountMinorUnits);
         Assert.Equal(intent.FeeAmountMinorUnits, stored.FeeAmountMinorUnits);
     }
+    [Fact]
+    public async Task PendingBatchIsBoundedAndRequiresCommittedPaymentSuccess()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var context = new PaymentsDbContext(options);
+        await context.Database.MigrateAsync();
+        var payments = Enumerable.Range(1, 4).Select(number => Payment.Rehydrate(
+            PaymentId.From(Guid.Parse($"00000000-0000-0000-0000-{number:D12}")),
+            100m, "SGD", number == 4 ? PaymentStatus.Pending : PaymentStatus.Succeeded)).ToArray();
+        context.Payments.AddRange(payments);
+        var intents = payments.Select(payment => PaymentLedgerPostingIntent.Create(payment.Id,
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "SGD", 10_000, 300)).ToArray();
+        intents[2].MarkPosted();
+        context.PaymentLedgerPostingIntents.AddRange(intents);
+        context.PaymentLedgerPostingIntents.Add(PaymentLedgerPostingIntent.Create(PaymentId.New(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "SGD", 10_000, 300));
+        await context.SaveChangesAsync();
+        var repository = new EfPaymentLedgerPostingIntentRepository(context);
+        var batch = await repository.GetPendingAsync(1);
+        Assert.Equal(payments[0].Id, Assert.Single(batch).PaymentId);
+        var all = await repository.GetPendingAsync(10);
+        Assert.Equal(new[] { payments[0].Id, payments[1].Id }, all.Select(x => x.PaymentId));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => repository.GetPendingAsync(0));
+    }
 }

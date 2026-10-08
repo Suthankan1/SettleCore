@@ -147,3 +147,9 @@
 - Focused 2 passed; host integration 66 passed; full solution 270 passed, zero failed/skipped; full build zero warnings/errors.
 - Next: bounded pending query for worker, followed by failure isolation/retry scheduling and hosted dispatch. Avoid starvation from permanently failing intents; no fee/account routing defaults.
 - Latest quota observed: 44% short-window and 85% weekly remaining; stop new changes around 10% remaining.
+
+## 2026-10-08 — 011.8A pending worker batches
+- Cross-store replay composition committed/pushed: `5d7956a`.
+- Added bounded ordered GetPendingAsync repository query, selecting pending intents only for committed succeeded payments. Posted intents, pending payments and orphan intents excluded; nonpositive limit rejected.
+- Compile-time RED captured; PostgreSQL GREEN verifies bounds/order and all exclusions. Payments infrastructure 30 passed; solution build zero warnings/errors. Last full solution 270 passed before query.
+- Next: durable next-attempt scheduling with due filtering and an index, tested before hosted worker. Failed records must not monopolize the bounded queue. Operational retry delay remains configurable; accounting inputs stay explicit.
