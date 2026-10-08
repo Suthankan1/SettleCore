@@ -1,12 +1,14 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current handback
-- Resumed from 011.6C, `873825f`. Completed 011.6D repository boundary through 011.8D opt-in automatic posting worker, in separately tested, committed and pushed slices.
-- Working copy used: `/Users/suthankan/.codex/.chatgpt-projects/g-p-6a87d9fd8d408191ab054e1d87dc13d6/SettleCore-current`, branch `main`, remote `https://github.com/Suthankan1/SettleCore.git`.
-- Primary repository: `/Users/suthankan/Desktop/Projects/SettleCore`; clean baseline verified before final synchronization. Fast-forward it to the final pushed commit; do not reset or overwrite local changes.
-- Final production verification: focused automatic-worker PostgreSQL test passed; all 69 host integration tests passed; full solution 275 passed, zero failed/skipped; full build zero warnings/errors.
-- Last prior commit: `7a4c5cf` (failure-isolated batch processor), pushed. This checkpoint is included in the hosted-worker commit; obtain its exact hash with `git log -1 --oneline`. No unfinished implementation is intended at handback.
-- Quota threshold: stop new slices around 10% remaining. Last check during closing validation: 13% short-window, 80% weekly remaining. Do not consume reset credits automatically.
+## Current handback — resumed verification and implementation
+- Freshly verified baseline: mirror and primary clean main at `506f299d8a2aebb5e1bb3b13803afbb555fcc9e6`, matching independently queried GitHub main. Existing 011.6D–011.8D work was already complete; no stale 011.6C assumptions used.
+- Working copy: `/Users/suthankan/.codex/.chatgpt-projects/g-p-6a87d9fd8d408191ab054e1d87dc13d6/SettleCore-current`, branch main, remote `https://github.com/Suthankan1/SettleCore.git`.
+- New separately verified/committed/pushed slices: application status query `15f07ed`, HTTP status endpoint `4676f7b`, retry-scheduling failure isolation `e59b2da`, hosted restart regression `d901673`, operational posting counters `c5aa906`.
+- Closing slice includes actual-host worker configuration tests: disabled by default; invalid batch size, poll interval or retry delay rejects startup. Test-first cases already GREEN; no production changes needed.
+- Final full solution: 289 passed, zero failed/skipped. Full build zero warnings/errors. No unfinished implementation intended; final configuration-test/checkpoint commit hash is available from git log. Push and verify GitHub before handoff.
+- Primary repository `/Users/suthankan/Desktop/Projects/SettleCore` rechecked clean main at baseline before closing; synchronize by fast-forward only after final push. Exact post-sync state is recorded in the workspace SettleCore_HANDOFF.md.
+- Usage last observed: 12% short-window, 71% weekly remaining. No further implementation slices started near the user's approximately 10% handoff threshold. No reset credits used.
+- Durable progress memory is this tracked checkpoint plus workspace handoff. Account-wide ChatGPT memory editing and automatic UI switching to normal chat are unavailable; return the checkpoint in this chat.
 
 ## Current behavior and operating requirements
 - Success endpoint requires caller-supplied transaction/ledger/account IDs and fee explicitly labelled in minor units. Factory uses stored payment amount/currency; no fee formula or accounting routing defaults.
@@ -18,9 +20,10 @@
 - No frontend work. Audit trail, provider ingestion/webhooks, broader observability, deployment and other remaining backend roadmap work are not complete.
 
 ## Next intended small slice
-- 011.8E: read-only posting-intent status lookup by payment ID, starting with RED application query tests, then minimal result/handler, DI and PostgreSQL HTTP tests. Expose pending/posted status and next-attempt time so delayed/failed dispatch can be inspected.
-- Then strengthen batch scheduling-failure isolation and hosted-worker failure/restart coverage, add posting metrics/audit, and continue defined backend work. Provider-specific behavior requires actual provider requirements; do not invent signatures or event contracts.
-- Preserve focused RED → minimal GREEN → relevant module checks → full solution/build at meaningful integration boundaries → separate commit/push, with a checkpoint per slice.
+- 011.9: inspect available audit requirements and repository conventions, then define the smallest durable payment-posting audit boundary with a focused RED test before implementation. Keep audit persistence/replay semantics explicit; do not introduce a cross-module transaction without separate tests.
+- Operational metrics now cover attempts, successful processing outcomes, posting failures and retry-scheduling failures. No exporter or monitoring deployment has been configured.
+- Provider-specific ingestion/webhooks require actual provider requirements; do not invent signatures or event contracts. Audit, provider work, broader deployment and the remaining backend roadmap are still incomplete. Backend remains ahead of frontend.
+- Preserve focused RED → minimal GREEN → module verification → solution/build at meaningful integration boundaries → separate commit/push, with checkpoint per slice.
 
 ## 011.8D hosted worker closing slice
 - PostgreSQL assertion RED captured: HTTP success persisted intent but it remained Pending without a worker. GREEN with enabled hosted worker completes it automatically and retains one balanced Ledger transaction with three entries.
@@ -234,3 +237,9 @@
 - Compile-time RED captured before instrumentation. PostgreSQL-backed listener verifies exact counters through failure/scheduling failure/recovery and excludes host cancellation from failure counters.
 - Focused batch tests 5 passed before extra shutdown metric case; full solution 285 passed including both metric cases, zero failed/skipped; build zero warnings/errors.
 - Next: verify disabled-by-default and invalid worker operational settings at actual host startup, then handoff near quota threshold. Durable audit remains a future backend slice; provider-specific ingestion still requires actual requirements.
+
+## 2026-10-08 — worker configuration and closing handoff
+- Metrics committed/pushed as `c5aa906`.
+- Four actual-host tests verify default-disabled worker and startup rejection for invalid batch size/poll interval/retry delay. All GREEN immediately on existing validation; test-only slice.
+- Final full solution 289 passed, zero failed/skipped; full build zero warnings/errors. No new migrations in this run, no frontend or accounting defaults.
+- This checkpoint and configuration tests form the final separate commit. Verify exact HEAD/remote and clean primary fast-forward; workspace handoff stores final immutable SHA and verification evidence paths.
