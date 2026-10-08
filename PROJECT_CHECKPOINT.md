@@ -42,3 +42,14 @@
 - Autonomous work stopping at the verified 011.5B boundary near the capacity threshold; no uncommitted implementation work intended. Verify local HEAD/remote match after push.
 - Completed this run: 011.4C `6413d63`, 011.5A `957787b`, and 011.5B (checkpoint-containing commit). 011.4B `77b3221` was already present and pushed.
 - No payment-success-to-ledger wiring, outbox worker, provider ingestion, audit or frontend implementation added in this run.
+
+## 2026-10-08 — 011.6D
+- Baseline 011.6C: `873825f`, current source checkout clean at start.
+- Working repository for this run: local project directory `SettleCore-current` (cloned from `/Users/suthankan/Desktop/Projects/SettleCore`). Original source checkout remains at the baseline.
+- Added Payments-owned IPaymentLedgerPostingIntentRepository and minimal EF AddAsync/GetByPaymentIdAsync implementation, following existing repository conventions.
+- Compile-time RED captured for missing repository types before implementation. PostgreSQL GREEN reloads the complete immutable payload through an independent context and checks missing payment returns null.
+- Focused test 1 passed; Payments infrastructure 12 passed; full solution 239 passed, zero failed/skipped; full build zero warnings/errors.
+- Docker Desktop was stopped; started successfully to enable Testcontainers.
+- Next small step: repository DI registration with focused resolution test, then explicit atomic payment-success/intent boundary and PostgreSQL rollback tests. Standalone AddAsync follows existing SaveChanges conventions; atomic integration must use a shared transaction/boundary rather than independent commits.
+- Posting inputs stay explicit; no accounting routing or fee policy invented. No frontend changes.
+- This checkpoint is included in the 011.6D commit; verify final hash and push status with Git.
