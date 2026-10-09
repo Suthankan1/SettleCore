@@ -76,11 +76,20 @@ public sealed class EfPaymentLedgerPostingIntentRepository(
         CancellationToken cancellationToken = default)
     {
         var utcNextAttempt = nextAttemptAt.ToUniversalTime();
-        var affected = await dbContext.PaymentLedgerPostingIntents
-            .Where(intent => intent.PaymentId == paymentId &&
-                intent.Status == PaymentLedgerPostingIntentStatus.Pending)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(
-                intent => intent.NextAttemptAt, utcNextAttempt), cancellationToken);
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        var eventId = Guid.NewGuid();
+        var affected = await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            WITH scheduled AS (
+                UPDATE payment_ledger_posting_intents
+                SET next_attempt_at = {utcNextAttempt}
+                WHERE payment_id = {paymentId.Value} AND status = 'Pending'
+                RETURNING payment_id, transaction_id
+            )
+            INSERT INTO payment_ledger_posting_events
+                (id, payment_id, transaction_id, kind, occurred_at, next_attempt_at)
+            SELECT {eventId}, payment_id, transaction_id, 'RetryScheduled', {now}, {utcNextAttempt}
+            FROM scheduled
+            """, cancellationToken);
         return affected == 1;
     }
 }

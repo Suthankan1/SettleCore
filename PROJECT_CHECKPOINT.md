@@ -267,3 +267,11 @@
 - Focused 3 passed; module 35 passed; full solution 293 passed, zero failed/skipped; build zero warnings/errors. No migration needed for this slice. Exact SHA from git; no unfinished source changes at commit.
 - Next: RetryScheduled lifecycle events atomically with each successful schedule update, persisted explicit next-attempt time; verify failed audit rollback and no events for missing/Posted intents.
 - Provider ingestion contract requested from user while independent audit work continues. No provider-specific assumptions or frontend work.
+
+## 2026-10-09 — atomic retry-scheduled events
+- Acknowledgment event committed/pushed as `7707f9e`.
+- Two PostgreSQL behavioral RED cases then GREEN: each successful scheduling update appends RetryScheduled with UTC occurrence and exact normalized next-attempt time, in one parameterized UPDATE-returning/INSERT statement.
+- Missing/Posted intents append nothing. Audit rejection preserves prior schedule/history. Added concurrency regression: racing retry/acknowledgment cannot revive Posted; audit events match successful state updates.
+- Module 38 passed, zero failed/skipped; build zero warnings/errors. Last full solution 293 before these three added tests; repeat at next HTTP integration boundary. No migration/frontend/accounting policy change.
+- Next: expose first acknowledgment time in existing read-only posting status response and verify full HTTP lifecycle event history without GET side effects; full solution/build then checkpoint. Provider contract remains pending; no provider assumptions.
+- Exact slice SHA from git; checkpoint included in commit, no unfinished changes at commit. Usage last observed 77% short-window/66% weekly remaining.

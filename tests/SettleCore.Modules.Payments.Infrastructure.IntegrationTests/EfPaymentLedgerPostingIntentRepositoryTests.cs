@@ -262,6 +262,100 @@ public sealed class EfPaymentLedgerPostingIntentRepositoryTests
         Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
     }
 
+    [Fact]
+    public async Task RetryEventsRetainEverySuccessfulScheduleAndExcludeMissingOrPostedIntents()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        var intent = PaymentLedgerPostingIntent.Create(PaymentId.New(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 10_000, 300);
+        var clock = new ManualClock(new DateTimeOffset(2026, 10, 9, 0, 0, 0, TimeSpan.Zero));
+        var repository = new EfPaymentLedgerPostingIntentRepository(writer, clock);
+        await repository.AddAsync(intent);
+        var firstDue = clock.Now.AddMinutes(1);
+        Assert.True(await repository.ScheduleRetryAsync(intent.PaymentId, firstDue.ToOffset(TimeSpan.FromHours(5))));
+        var firstOccurrence = clock.Now;
+        clock.Now = clock.Now.AddSeconds(1);
+        var secondDue = clock.Now.AddMinutes(2);
+        Assert.True(await repository.ScheduleRetryAsync(intent.PaymentId, secondDue));
+        Assert.False(await repository.ScheduleRetryAsync(PaymentId.New(), secondDue));
+        Assert.True(await repository.MarkPostedAsync(intent.PaymentId));
+        Assert.False(await repository.ScheduleRetryAsync(intent.PaymentId, secondDue));
+        await using var reader = new PaymentsDbContext(options);
+        var events = await reader.PaymentLedgerPostingEvents
+            .Where(x => x.Kind == PaymentLedgerPostingEventKind.RetryScheduled)
+            .OrderBy(x => x.OccurredAt).ToListAsync();
+        Assert.Equal(2, events.Count);
+        Assert.Equal(firstDue, events[0].NextAttemptAt);
+        Assert.Equal(firstOccurrence, events[0].OccurredAt);
+        Assert.Equal(secondDue, events[1].NextAttemptAt);
+        Assert.Equal(clock.Now, events[1].OccurredAt);
+        Assert.All(events, audit => {
+            Assert.Equal(intent.PaymentId, audit.PaymentId);
+            Assert.Equal(intent.TransactionId, audit.TransactionId);
+        });
+    }
+
+    [Fact]
+    public async Task RetryAuditFailurePreservesPreviousSchedule()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        var intent = PaymentLedgerPostingIntent.Create(PaymentId.New(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 10_000, 300);
+        var repository = new EfPaymentLedgerPostingIntentRepository(writer);
+        await repository.AddAsync(intent);
+        var firstDue = new DateTimeOffset(2026, 10, 9, 0, 1, 0, TimeSpan.Zero);
+        Assert.True(await repository.ScheduleRetryAsync(intent.PaymentId, firstDue));
+        await writer.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE payment_ledger_posting_events ADD CONSTRAINT reject_new_audit CHECK (false) NOT VALID");
+        await Assert.ThrowsAsync<Npgsql.PostgresException>(() =>
+            repository.ScheduleRetryAsync(intent.PaymentId, firstDue.AddMinutes(1)));
+        await using var reader = new PaymentsDbContext(options);
+        Assert.Equal(firstDue, (await reader.PaymentLedgerPostingIntents.SingleAsync()).NextAttemptAt);
+        Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
+        await writer.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE payment_ledger_posting_events DROP CONSTRAINT reject_new_audit");
+        Assert.True(await repository.ScheduleRetryAsync(intent.PaymentId, firstDue.AddMinutes(1)));
+        Assert.Equal(2, await reader.PaymentLedgerPostingEvents.CountAsync());
+    }
+
+    [Fact]
+    public async Task ConcurrentRetryAndAcknowledgmentNeverRevivePostedIntent()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var seed = new PaymentsDbContext(options);
+        await seed.Database.MigrateAsync();
+        var intent = PaymentLedgerPostingIntent.Create(PaymentId.New(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 10_000, 300);
+        await new EfPaymentLedgerPostingIntentRepository(seed).AddAsync(intent);
+        await using var retryContext = new PaymentsDbContext(options);
+        await using var postingContext = new PaymentsDbContext(options);
+        var nextAttempt = new DateTimeOffset(2026, 10, 9, 0, 1, 0, TimeSpan.Zero);
+        var retryTask = new EfPaymentLedgerPostingIntentRepository(retryContext)
+            .ScheduleRetryAsync(intent.PaymentId, nextAttempt);
+        var postingTask = new EfPaymentLedgerPostingIntentRepository(postingContext)
+            .MarkPostedAsync(intent.PaymentId);
+        await Task.WhenAll(retryTask, postingTask);
+        Assert.True(await postingTask);
+        await using var reader = new PaymentsDbContext(options);
+        var stored = await reader.PaymentLedgerPostingIntents.SingleAsync();
+        Assert.Equal(PaymentLedgerPostingIntentStatus.Posted, stored.Status);
+        var events = await reader.PaymentLedgerPostingEvents.ToListAsync();
+        Assert.Single(events, audit => audit.Kind == PaymentLedgerPostingEventKind.PostingAcknowledged);
+        Assert.Equal(await retryTask ? 1 : 0,
+            events.Count(audit => audit.Kind == PaymentLedgerPostingEventKind.RetryScheduled));
+        Assert.Equal(await retryTask ? nextAttempt : (DateTimeOffset?)null, stored.NextAttemptAt);
+        Assert.False(await new EfPaymentLedgerPostingIntentRepository(reader)
+            .ScheduleRetryAsync(intent.PaymentId, nextAttempt.AddHours(1)));
+        Assert.Equal(events.Count, await reader.PaymentLedgerPostingEvents.CountAsync());
+    }
+
     private sealed class ManualClock(DateTimeOffset now) : TimeProvider
     {
         public DateTimeOffset Now { get; set; } = now;
