@@ -33,14 +33,16 @@ public sealed class EfPaymentLedgerPostingIntentRepository(
         PaymentId paymentId,
         CancellationToken cancellationToken = default)
     {
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         var affected = await dbContext.PaymentLedgerPostingIntents
             .Where(intent => intent.PaymentId == paymentId &&
-                (intent.Status == PaymentLedgerPostingIntentStatus.Pending ||
-                 intent.Status == PaymentLedgerPostingIntentStatus.Posted))
-            .ExecuteUpdateAsync(setters => setters.SetProperty(
-                intent => intent.Status, PaymentLedgerPostingIntentStatus.Posted),
-                cancellationToken);
-        return affected == 1;
+                intent.Status == PaymentLedgerPostingIntentStatus.Pending)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(intent => intent.Status, PaymentLedgerPostingIntentStatus.Posted)
+                .SetProperty(intent => intent.PostedAt, now), cancellationToken);
+        return affected == 1 || await dbContext.PaymentLedgerPostingIntents
+            .AnyAsync(intent => intent.PaymentId == paymentId &&
+                intent.Status == PaymentLedgerPostingIntentStatus.Posted, cancellationToken);
     }
     public async Task<IReadOnlyList<PaymentLedgerPostingIntent>> GetPendingAsync(
         int limit,

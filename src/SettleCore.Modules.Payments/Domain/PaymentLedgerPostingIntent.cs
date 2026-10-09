@@ -51,6 +51,8 @@ public sealed class PaymentLedgerPostingIntent
 
     public PaymentLedgerPostingIntentStatus Status { get; private set; }
 
+    public DateTimeOffset? PostedAt { get; private set; }
+
     public DateTimeOffset? NextAttemptAt { get; private set; }
 
     public void MarkPosted()

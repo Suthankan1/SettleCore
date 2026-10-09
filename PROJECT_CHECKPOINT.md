@@ -243,3 +243,11 @@
 - Four actual-host tests verify default-disabled worker and startup rejection for invalid batch size/poll interval/retry delay. All GREEN immediately on existing validation; test-only slice.
 - Final full solution 289 passed, zero failed/skipped; full build zero warnings/errors. No new migrations in this run, no frontend or accounting defaults.
 - This checkpoint and configuration tests form the final separate commit. Verify exact HEAD/remote and clean primary fast-forward; workspace handoff stores final immutable SHA and verification evidence paths.
+
+## 2026-10-09 — first posting acknowledgment evidence
+- Baseline independently verified clean main/GitHub at `4b2b3b21312895dc29e5b1b6d15c0450da3fe588`; fresh baseline 289 passed.
+- Focused compile-time RED captured for missing PostedAt, then PostgreSQL GREEN. Nullable posted_at records the first Pending→Posted acknowledgment atomically with status; replay/concurrent acknowledgment preserves the winner. Historical Posted rows remain null; no fabricated timestamps.
+- Migration `20261009030228_AddPaymentLedgerPostingAcknowledgmentTime` adds only nullable timestamp column. Timestamp is acknowledgment time, not proof of the exact external Ledger write time.
+- Payments infrastructure 33 passed; full solution 291 passed, zero failed/skipped; build zero warnings/errors. No frontend/accounting defaults. This checkpoint is included in the separate slice commit; exact SHA from git.
+- User explicitly selected payment-posting lifecycle audit scope: intent recorded, retry scheduled, posting acknowledged. Next: durable append-only event records, with same-store atomic state/event writes and replay/concurrency/rollback tests.
+- Durable memory remains this tracked checkpoint and workspace handoff; no account-wide memory editor or automatic mode-switch control available. Usage observed 92% short-window/69% weekly remaining before full verification.

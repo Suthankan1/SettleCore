@@ -174,6 +174,60 @@ public sealed class EfPaymentLedgerPostingIntentRepositoryTests
             (await freshRepository.GetByPaymentIdAsync(payment.Id))!.Status);
     }
 
+    [Fact]
+    public async Task FirstPostingAcknowledgmentTimeIsDurableAndPreservedOnReplay()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        var intent = PaymentLedgerPostingIntent.Create(PaymentId.New(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 10_000, 300);
+        var clock = new ManualClock(new DateTimeOffset(2026, 10, 9, 0, 0, 0, TimeSpan.Zero));
+        var repository = new EfPaymentLedgerPostingIntentRepository(writer, clock);
+        await repository.AddAsync(intent);
+        Assert.Null((await repository.GetByPaymentIdAsync(intent.PaymentId))!.PostedAt);
+        Assert.True(await repository.MarkPostedAsync(intent.PaymentId));
+        var firstAcknowledgment = clock.Now;
+        clock.Now = clock.Now.AddHours(1);
+        Assert.True(await repository.MarkPostedAsync(intent.PaymentId));
+        await using var reader = new PaymentsDbContext(options);
+        var stored = await reader.PaymentLedgerPostingIntents.SingleAsync();
+        Assert.Equal(firstAcknowledgment, stored.PostedAt);
+        Assert.Equal(PaymentLedgerPostingIntentStatus.Posted, stored.Status);
+        Assert.Equal(intent.TransactionId, stored.TransactionId);
+    }
+
+    [Fact]
+    public async Task ConcurrentAcknowledgmentsRetainOneWinningTimestamp()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var seed = new PaymentsDbContext(options);
+        await seed.Database.MigrateAsync();
+        var intent = PaymentLedgerPostingIntent.Create(PaymentId.New(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 10_000, 300);
+        await new EfPaymentLedgerPostingIntentRepository(seed).AddAsync(intent);
+        var firstTime = new DateTimeOffset(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
+        var secondTime = firstTime.AddMinutes(1);
+        await using var first = new PaymentsDbContext(options);
+        await using var second = new PaymentsDbContext(options);
+        var results = await Task.WhenAll(
+            new EfPaymentLedgerPostingIntentRepository(first, new ManualClock(firstTime))
+                .MarkPostedAsync(intent.PaymentId),
+            new EfPaymentLedgerPostingIntentRepository(second, new ManualClock(secondTime))
+                .MarkPostedAsync(intent.PaymentId));
+        Assert.All(results, Assert.True);
+        await using var reader = new PaymentsDbContext(options);
+        var stored = await reader.PaymentLedgerPostingIntents.SingleAsync();
+        Assert.Contains(stored.PostedAt, new DateTimeOffset?[] { firstTime, secondTime });
+        Assert.True(await new EfPaymentLedgerPostingIntentRepository(reader,
+            new ManualClock(secondTime.AddHours(1))).MarkPostedAsync(intent.PaymentId));
+        Assert.Equal(stored.PostedAt,
+            (await new EfPaymentLedgerPostingIntentRepository(reader)
+                .GetByPaymentIdAsync(intent.PaymentId))!.PostedAt);
+    }
+
     private sealed class ManualClock(DateTimeOffset now) : TimeProvider
     {
         public DateTimeOffset Now { get; set; } = now;
