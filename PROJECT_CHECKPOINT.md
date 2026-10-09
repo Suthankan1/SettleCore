@@ -324,3 +324,10 @@
 - Single parameterized INSERT ON CONFLICT DO NOTHING followed by independent evidence comparison protects replay without poisoning EF tracking. Conflicting amount/identity/currency/reference/mode/time leaves original unchanged. Payment completion/ProcessedAt remain untouched.
 - Full solution 337 passed, zero failed/skipped; build zero warnings/errors. Migration reviewed additive only. Evidence copied to workspace settlecore-evidence/2026-10-09-stripe.
 - Next: configuration/DI then durable signed HTTP ingestion. Processing must verify stored local reference, amount/currency/mode and explicit posting inputs; do not infer any accounting routing or fees.
+
+## 2026-10-09 — validated opt-in Stripe composition
+- Inbox committed/pushed as `5e35891`; full solution 337 passed.
+- Focused compile-time RED then seven host startup/DI GREEN cases. Payments:Stripe settings default disabled; enabled mode requires explicit API key, webhook secret, positive SignatureToleranceSeconds and nullable IsLiveMode selection. No secrets added to appsettings or repository.
+- Runtime validated options govern lazy adapter construction; disabled mode refuses provider/decoder resolution. No SDK global state or outbound request on startup. Inbox scoped, provider/decoder singleton, injected TimeProvider.
+- Host integration module 86 passed, zero failed/skipped; full solution build zero warnings/errors. Last full solution 337 before seven new configuration tests.
+- Next: opt-in POST /payments/webhooks/stripe receives exact raw body/signature, enforces configured live/test mode and persists authenticated evidence before 200; invalid signatures/mode 400, conflicting replay 409, storage failure must not acknowledge success. No payment success changes until explicit posting-input preparation/correlation.

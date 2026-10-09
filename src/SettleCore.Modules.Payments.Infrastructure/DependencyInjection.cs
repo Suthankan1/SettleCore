@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +29,30 @@ public static class DependencyInjection
             configuration.GetConnectionString("Payments")
             ?? throw new InvalidOperationException(
                 "Connection string 'Payments' is not configured.");
+
+        services.AddOptions<StripePaymentOptions>()
+            .Bind(configuration.GetSection("Payments:Stripe"))
+            .Validate(static settings => !settings.Enabled ||
+                (!string.IsNullOrWhiteSpace(settings.ApiKey) &&
+                 !string.IsNullOrWhiteSpace(settings.WebhookSecret) &&
+                 settings.SignatureToleranceSeconds > 0 && settings.IsLiveMode.HasValue),
+                "Enabled Stripe requires explicit API key, webhook secret, positive signature tolerance and live/test mode.")
+            .ValidateOnStart();
+        services.AddSingleton<global::Stripe.StripeClient>(provider =>
+        {
+            var settings = provider.GetRequiredService<IOptions<StripePaymentOptions>>().Value;
+            if (!settings.Enabled) throw new InvalidOperationException("Stripe payments are disabled.");
+            return new global::Stripe.StripeClient(settings.ApiKey);
+        });
+        services.AddSingleton<IPaymentProvider, StripePaymentProvider>();
+        services.AddSingleton<IPaymentProviderWebhookDecoder>(provider =>
+        {
+            var settings = provider.GetRequiredService<IOptions<StripePaymentOptions>>().Value;
+            if (!settings.Enabled) throw new InvalidOperationException("Stripe payments are disabled.");
+            return new StripePaymentWebhookDecoder(settings.WebhookSecret!, settings.SignatureToleranceSeconds,
+                provider.GetRequiredService<TimeProvider>());
+        });
+        services.AddScoped<IPaymentProviderEventInbox, EfPaymentProviderEventInbox>();
 
         services.AddDbContext<PaymentsDbContext>(
             options => options.UseNpgsql(connectionString));
