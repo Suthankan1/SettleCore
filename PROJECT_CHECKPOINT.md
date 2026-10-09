@@ -302,3 +302,11 @@
 - Full solution 314 passed, zero failed/skipped; build zero warnings/errors. No migration/frontend/live external provider calls. Current logs /tmp/settlecore-stripe-{red,green,full,build}.log.
 - Next: authenticated webhook decoder with explicit secret, clock/tolerance/API-version checks and neutral event data, then durable inbox and explicit posting-input preparation before authoritative success application.
 - Quota last observed 52% short-window/62% weekly remaining; no automatic mode switch or account-wide memory tool available.
+
+## 2026-10-09 — authenticated Stripe success decoder
+- PaymentIntent adapter committed/pushed as `f4aed62`; full solution 314 passed.
+- Focused compile-time RED and malformed signed-envelope behavioral RED captured, then GREEN for neutral webhook decoder/evidence/exception boundary. Official SDK authenticates exact raw body, positive explicit replay tolerance with injected clock, compatible API version. HMAC tests cover tampering/wrong secret/invalid header/expired and future timestamps.
+- Only signed payment_intent.succeeded returns neutral evidence; unrelated events ignored after authentication. Rejects inconsistent status, absent/empty metadata identity, incomplete amount received, malformed envelopes and incompatible API versions. Event carries provider/event/payment IDs, exact amount/currency, occurrence time and live-mode flag, no raw sensitive payload/client secret.
+- Payments Infrastructure 66 passed (19 new decoder cases); solution build zero warnings/errors. Last full solution 314 before this slice; repeat after inbox migration. No HTTP connection or local status write yet.
+- Next: PostgreSQL durable event inbox with provider/event identity deduplication, conflicting replay rejection, first receipt time and concurrent delivery tests; store before any acknowledgment. Correlate against durable local provider reference and amount before applying success. Explicit posting-input preparation still needed; never infer accounts or fees.
+- Quota last observed 47% short-window/61% weekly remaining; tracked checkpoints and workspace handoff provide durable continuity.
