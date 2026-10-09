@@ -1,6 +1,13 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current handback — 2026-10-09 lifecycle audit complete
+## Active continuation — 2026-10-09 Stripe backend foundation
+- User has selected Stripe PaymentIntents; prior provider-decision blocker is resolved. Keep neutral Payments contracts and Infrastructure-only SDK usage. Creation observations do not authorize completion.
+- Separately pushed: `fe1dfaa` stable creation identity, `105107f` neutral contract, `f4aed62` Stripe adapter, `ca45826` signed webhook decoder. This slice adds durable inbox/migration; exact SHA from git.
+- Latest full solution 337 passed, zero failed/skipped; build zero warnings/errors. Durable receipts do not apply payment success yet. No frontend or live Stripe calls.
+- Next: opt-in provider/decoder/inbox DI with validated explicit credentials, live/test mode and signature tolerance; then HTTP durable ingestion and explicit posting-input preparation before success application.
+- Durable continuity: this file and workspace SettleCore_HANDOFF.md. Quota last observed 37% short-window/60% weekly remaining; stop new slices at about 10%.
+
+## Historical handback — 2026-10-09 lifecycle audit complete
 - Fresh baseline was clean main `4b2b3b21312895dc29e5b1b6d15c0450da3fe588`, independently verified against GitHub; full baseline 289 passed.
 - Working mirror: `/Users/suthankan/.codex/.chatgpt-projects/g-p-6a87d9fd8d408191ab054e1d87dc13d6/SettleCore-current`. Primary `/Users/suthankan/Desktop/Projects/SettleCore` inspected clean at baseline; fast-forward after final push, with exact result in workspace SettleCore_HANDOFF.md.
 - Separate pushed slices: first acknowledgment time `bbc4068`, intent-recorded event `0e549f2`, atomic acknowledgment event `7707f9e`, atomic retry event `6376466`. Closing status-response/test slice is this commit; exact SHA from git and workspace handoff.
@@ -310,3 +317,10 @@
 - Payments Infrastructure 66 passed (19 new decoder cases); solution build zero warnings/errors. Last full solution 314 before this slice; repeat after inbox migration. No HTTP connection or local status write yet.
 - Next: PostgreSQL durable event inbox with provider/event identity deduplication, conflicting replay rejection, first receipt time and concurrent delivery tests; store before any acknowledgment. Correlate against durable local provider reference and amount before applying success. Explicit posting-input preparation still needed; never infer accounts or fees.
 - Quota last observed 47% short-window/61% weekly remaining; tracked checkpoints and workspace handoff provide durable continuity.
+
+## 2026-10-09 — durable provider success inbox
+- Focused compile-time RED then four PostgreSQL cases GREEN: preserve first receipt, identical retries, differing evidence conflict, concurrent identical deliveries and provider-scoped event IDs.
+- Additive migration `20261009033110_AddPaymentProviderEventInbox` stores neutral evidence and timestamps with composite provider/event identity and pending index. Receipt can arrive before local payment/reference persistence; no FK silently rejects that recoverable timing. No raw payload or client secret stored.
+- Single parameterized INSERT ON CONFLICT DO NOTHING followed by independent evidence comparison protects replay without poisoning EF tracking. Conflicting amount/identity/currency/reference/mode/time leaves original unchanged. Payment completion/ProcessedAt remain untouched.
+- Full solution 337 passed, zero failed/skipped; build zero warnings/errors. Migration reviewed additive only. Evidence copied to workspace settlecore-evidence/2026-10-09-stripe.
+- Next: configuration/DI then durable signed HTTP ingestion. Processing must verify stored local reference, amount/currency/mode and explicit posting inputs; do not infer any accounting routing or fees.
