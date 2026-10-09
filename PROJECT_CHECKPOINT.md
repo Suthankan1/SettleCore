@@ -294,3 +294,11 @@
 - Neutral statuses include processing, capture-required and canceled, avoiding premature success/failure assumptions. Requires-payment-method remains retryable Pending in the upcoming adapter; unknown provider statuses must fail explicitly.
 - Payments unit module 119 passed; full build zero warnings/errors. No Infrastructure SDK dependency in Domain/Application.
 - Next: pinned official Stripe.net SDK in Infrastructure, isolated transport RED tests for PaymentIntent payload/idempotency/metadata and status normalization, then minimal adapter GREEN. No live provider credentials required for those tests.
+
+## 2026-10-09 — Stripe PaymentIntent adapter
+- Neutral contract committed/pushed as `105107f`. Official Stripe.net 53.0.0 pinned exclusively in Payments Infrastructure.
+- Focused compile-time RED then nine fake HTTP transport cases GREEN using the actual SDK. Adapter creates unconfirmed PaymentIntent with explicit amount/currency, payment-derived idempotency header and SettleCore identity metadata. No Connect routing/application fee assumptions. Provider reference/client secret returned neutrally; local status unchanged.
+- All seven documented PaymentIntent statuses normalized; requires-payment-method/confirmation are Pending, processing/capture/action/canceled explicit, unknown status throws. A failed attempt does not make the retryable intent terminal.
+- Full solution 314 passed, zero failed/skipped; build zero warnings/errors. No migration/frontend/live external provider calls. Current logs /tmp/settlecore-stripe-{red,green,full,build}.log.
+- Next: authenticated webhook decoder with explicit secret, clock/tolerance/API-version checks and neutral event data, then durable inbox and explicit posting-input preparation before authoritative success application.
+- Quota last observed 52% short-window/62% weekly remaining; no automatic mode switch or account-wide memory tool available.
