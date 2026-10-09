@@ -259,3 +259,11 @@
 - Compile-time RED captured; 16 focused persistence/retry cases GREEN, then added audit-insert failure rollback test. Module 34 passed, zero failed/skipped; solution build zero warnings/errors. Last full solution 291 before this one extra case; repeat after dispatch event integration.
 - Migration `20261009030614_AddPaymentLedgerPostingEvents` creates only event table, FK and indexes. Application writes append events; this is not a database-role immutability/security policy.
 - Next: atomic acknowledgment/retry events with PostgreSQL failure/replay/concurrency tests, then full-solution verification. No unfinished source changes at commit; exact SHA from git. Usage last observed 86% short-window/68% weekly remaining.
+
+## 2026-10-09 — atomic posting-acknowledged event
+- Intent-recorded audit committed/pushed as `0e549f2`.
+- PostgreSQL behavioral RED: missing event on first/concurrent acknowledgment, and no failure on forced audit rejection. GREEN via one parameterized PostgreSQL UPDATE-returning/INSERT statement, committing status/first PostedAt/event together without cross-store transaction.
+- Replays (including historically Posted rows) do not invent an event/time. Concurrent acknowledgments retain one winning timestamp and one event; audit failure leaves Pending/null PostedAt and healthy retry succeeds.
+- Focused 3 passed; module 35 passed; full solution 293 passed, zero failed/skipped; build zero warnings/errors. No migration needed for this slice. Exact SHA from git; no unfinished source changes at commit.
+- Next: RetryScheduled lifecycle events atomically with each successful schedule update, persisted explicit next-attempt time; verify failed audit rollback and no events for missing/Posted intents.
+- Provider ingestion contract requested from user while independent audit work continues. No provider-specific assumptions or frontend work.

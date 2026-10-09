@@ -34,12 +34,21 @@ public sealed class EfPaymentLedgerPostingIntentRepository(
         CancellationToken cancellationToken = default)
     {
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
-        var affected = await dbContext.PaymentLedgerPostingIntents
-            .Where(intent => intent.PaymentId == paymentId &&
-                intent.Status == PaymentLedgerPostingIntentStatus.Pending)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(intent => intent.Status, PaymentLedgerPostingIntentStatus.Posted)
-                .SetProperty(intent => intent.PostedAt, now), cancellationToken);
+        // One PostgreSQL statement commits the transition and event together.
+        // Concurrent/replayed acknowledgments cannot append another event.
+        var eventId = Guid.NewGuid();
+        var affected = await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            WITH acknowledged AS (
+                UPDATE payment_ledger_posting_intents
+                SET status = 'Posted', posted_at = {now}
+                WHERE payment_id = {paymentId.Value} AND status = 'Pending'
+                RETURNING payment_id, transaction_id
+            )
+            INSERT INTO payment_ledger_posting_events
+                (id, payment_id, transaction_id, kind, occurred_at, next_attempt_at)
+            SELECT {eventId}, payment_id, transaction_id, 'PostingAcknowledged', {now}, NULL
+            FROM acknowledged
+            """, cancellationToken);
         return affected == 1 || await dbContext.PaymentLedgerPostingIntents
             .AnyAsync(intent => intent.PaymentId == paymentId &&
                 intent.Status == PaymentLedgerPostingIntentStatus.Posted, cancellationToken);

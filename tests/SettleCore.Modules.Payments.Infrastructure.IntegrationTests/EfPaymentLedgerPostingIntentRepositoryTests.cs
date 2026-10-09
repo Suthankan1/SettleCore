@@ -194,6 +194,12 @@ public sealed class EfPaymentLedgerPostingIntentRepositoryTests
         await using var reader = new PaymentsDbContext(options);
         var stored = await reader.PaymentLedgerPostingIntents.SingleAsync();
         Assert.Equal(firstAcknowledgment, stored.PostedAt);
+        var audit = Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
+        Assert.Equal(PaymentLedgerPostingEventKind.PostingAcknowledged, audit.Kind);
+        Assert.Equal(firstAcknowledgment, audit.OccurredAt);
+        Assert.Equal(intent.TransactionId, audit.TransactionId);
+        Assert.Equal(intent.PaymentId, audit.PaymentId);
+        Assert.Null(audit.NextAttemptAt);
         Assert.Equal(PaymentLedgerPostingIntentStatus.Posted, stored.Status);
         Assert.Equal(intent.TransactionId, stored.TransactionId);
     }
@@ -221,11 +227,39 @@ public sealed class EfPaymentLedgerPostingIntentRepositoryTests
         await using var reader = new PaymentsDbContext(options);
         var stored = await reader.PaymentLedgerPostingIntents.SingleAsync();
         Assert.Contains(stored.PostedAt, new DateTimeOffset?[] { firstTime, secondTime });
+        var audit = Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
+        Assert.Equal(stored.PostedAt, audit.OccurredAt);
+        Assert.Equal(PaymentLedgerPostingEventKind.PostingAcknowledged, audit.Kind);
         Assert.True(await new EfPaymentLedgerPostingIntentRepository(reader,
             new ManualClock(secondTime.AddHours(1))).MarkPostedAsync(intent.PaymentId));
         Assert.Equal(stored.PostedAt,
             (await new EfPaymentLedgerPostingIntentRepository(reader)
                 .GetByPaymentIdAsync(intent.PaymentId))!.PostedAt);
+    }
+
+    [Fact]
+    public async Task AcknowledgmentAuditFailureLeavesIntentPending()
+    {
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString()).Options;
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        var intent = PaymentLedgerPostingIntent.Create(PaymentId.New(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 10_000, 300);
+        var repository = new EfPaymentLedgerPostingIntentRepository(writer);
+        await repository.AddAsync(intent);
+        await writer.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE payment_ledger_posting_events ADD CONSTRAINT reject_audit CHECK (false)");
+        await Assert.ThrowsAsync<Npgsql.PostgresException>(() => repository.MarkPostedAsync(intent.PaymentId));
+        await using var reader = new PaymentsDbContext(options);
+        var stored = await reader.PaymentLedgerPostingIntents.SingleAsync();
+        Assert.Equal(PaymentLedgerPostingIntentStatus.Pending, stored.Status);
+        Assert.Null(stored.PostedAt);
+        Assert.Empty(await reader.PaymentLedgerPostingEvents.ToListAsync());
+        await writer.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE payment_ledger_posting_events DROP CONSTRAINT reject_audit");
+        Assert.True(await repository.MarkPostedAsync(intent.PaymentId));
+        Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
     }
 
     private sealed class ManualClock(DateTimeOffset now) : TimeProvider
