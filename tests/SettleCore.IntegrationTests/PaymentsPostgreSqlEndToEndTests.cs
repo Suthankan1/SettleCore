@@ -319,6 +319,7 @@ public sealed class PaymentsPostgreSqlEndToEndTests
         Assert.Equal(input.TransactionId, pending.TransactionId);
         Assert.Equal("Pending", pending.Status);
         Assert.Null(pending.NextAttemptAt);
+        Assert.Null(pending.PostedAt);
         var due = new DateTimeOffset(2026, 10, 9, 1, 2, 3, TimeSpan.Zero);
         using (var scope = factory.Services.CreateScope())
         {
@@ -330,6 +331,7 @@ public sealed class PaymentsPostgreSqlEndToEndTests
         Assert.NotNull(scheduled);
         Assert.Equal("Pending", scheduled.Status);
         Assert.Equal(due, scheduled.NextAttemptAt);
+        Assert.Null(scheduled.PostedAt);
         using (var scope = factory.Services.CreateScope())
         {
             Assert.True(await scope.ServiceProvider.GetRequiredService<IPaymentLedgerPostingIntentRepository>()
@@ -343,6 +345,20 @@ public sealed class PaymentsPostgreSqlEndToEndTests
         var stored = Assert.Single(await reader.PaymentLedgerPostingIntents.ToListAsync());
         Assert.Equal(SettleCore.Modules.Payments.Domain.PaymentLedgerPostingIntentStatus.Posted, stored.Status);
         Assert.Equal(stored.NextAttemptAt, posted.NextAttemptAt);
+        Assert.NotNull(posted.PostedAt);
+        Assert.Equal(stored.PostedAt, posted.PostedAt);
+        var events = await reader.PaymentLedgerPostingEvents.OrderBy(x => x.OccurredAt).ToListAsync();
+        Assert.Equal(new[] { PaymentLedgerPostingEventKind.IntentRecorded,
+            PaymentLedgerPostingEventKind.RetryScheduled,
+            PaymentLedgerPostingEventKind.PostingAcknowledged }, events.Select(x => x.Kind));
+        Assert.All(events, audit => {
+            Assert.Equal(created.PaymentId, audit.PaymentId.Value);
+            Assert.Equal(input.TransactionId, audit.TransactionId);
+        });
+        Assert.Equal(due, events[1].NextAttemptAt);
+        Assert.Equal(posted.PostedAt, events[2].OccurredAt);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(url)).StatusCode);
+        Assert.Equal(3, await reader.PaymentLedgerPostingEvents.CountAsync());
         Assert.Equal(300, stored.FeeAmountMinorUnits);
         Assert.Equal(10_000, stored.GrossAmountMinorUnits);
     }

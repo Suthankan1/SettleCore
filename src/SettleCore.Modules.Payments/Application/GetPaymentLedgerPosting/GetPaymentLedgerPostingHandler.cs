@@ -11,6 +11,6 @@ public sealed class GetPaymentLedgerPostingHandler(IPaymentLedgerPostingIntentRe
         ArgumentNullException.ThrowIfNull(query);
         var intent = await repository.GetByPaymentIdAsync(PaymentId.From(query.PaymentId), cancellationToken);
         return intent is null ? null : new GetPaymentLedgerPostingResult(
-            intent.PaymentId.Value, intent.TransactionId, intent.Status.ToString(), intent.NextAttemptAt);
+            intent.PaymentId.Value, intent.TransactionId, intent.Status.ToString(), intent.NextAttemptAt, intent.PostedAt);
     }
 }

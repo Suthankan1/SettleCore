@@ -1,29 +1,27 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current handback — resumed verification and implementation
-- Freshly verified baseline: mirror and primary clean main at `506f299d8a2aebb5e1bb3b13803afbb555fcc9e6`, matching independently queried GitHub main. Existing 011.6D–011.8D work was already complete; no stale 011.6C assumptions used.
-- Working copy: `/Users/suthankan/.codex/.chatgpt-projects/g-p-6a87d9fd8d408191ab054e1d87dc13d6/SettleCore-current`, branch main, remote `https://github.com/Suthankan1/SettleCore.git`.
-- New separately verified/committed/pushed slices: application status query `15f07ed`, HTTP status endpoint `4676f7b`, retry-scheduling failure isolation `e59b2da`, hosted restart regression `d901673`, operational posting counters `c5aa906`.
-- Closing slice includes actual-host worker configuration tests: disabled by default; invalid batch size, poll interval or retry delay rejects startup. Test-first cases already GREEN; no production changes needed.
-- Final full solution: 289 passed, zero failed/skipped. Full build zero warnings/errors. No unfinished implementation intended; final configuration-test/checkpoint commit hash is available from git log. Push and verify GitHub before handoff.
-- Primary repository `/Users/suthankan/Desktop/Projects/SettleCore` rechecked clean main at baseline before closing; synchronize by fast-forward only after final push. Exact post-sync state is recorded in the workspace SettleCore_HANDOFF.md.
-- Usage last observed: 12% short-window, 71% weekly remaining. No further implementation slices started near the user's approximately 10% handoff threshold. No reset credits used.
-- Durable progress memory is this tracked checkpoint plus workspace handoff. Account-wide ChatGPT memory editing and automatic UI switching to normal chat are unavailable; return the checkpoint in this chat.
+## Current handback — 2026-10-09 lifecycle audit complete
+- Fresh baseline was clean main `4b2b3b21312895dc29e5b1b6d15c0450da3fe588`, independently verified against GitHub; full baseline 289 passed.
+- Working mirror: `/Users/suthankan/.codex/.chatgpt-projects/g-p-6a87d9fd8d408191ab054e1d87dc13d6/SettleCore-current`. Primary `/Users/suthankan/Desktop/Projects/SettleCore` inspected clean at baseline; fast-forward after final push, with exact result in workspace SettleCore_HANDOFF.md.
+- Separate pushed slices: first acknowledgment time `bbc4068`, intent-recorded event `0e549f2`, atomic acknowledgment event `7707f9e`, atomic retry event `6376466`. Closing status-response/test slice is this commit; exact SHA from git and workspace handoff.
+- Final solution 296 passed, zero failed/skipped; build zero warnings/errors. No unfinished source changes at commit. No frontend changes.
+- Durable memory: this tracked checkpoint plus workspace SettleCore_HANDOFF.md. Account-wide ChatGPT memory editing and automatic normal-chat mode switching are unavailable.
+- Quota visible: last observed 72% short-window, 65% weekly remaining; not near approximately 10% threshold. Stopping at missing provider contract, not quota.
 
 ## Current behavior and operating requirements
-- Success endpoint requires caller-supplied transaction/ledger/account IDs and fee explicitly labelled in minor units. Factory uses stored payment amount/currency; no fee formula or accounting routing defaults.
-- Succeeded status and complete immutable pending intent persist atomically. Matching retries are idempotent; changed payloads produce 409, including changed transaction IDs for the same payment. Concurrent writers and true PostgreSQL rollback verified.
-- Dispatch calls Ledger before acknowledging Posted. Lost acknowledgment replays the stable transaction identity and exact payload; real separate-store PostgreSQL tests prove one balanced transaction/three entries.
-- Pending batches are bounded, require committed payment success, exclude posted/orphan/inconsistent records, and filter persisted next-attempt times. Each intent has its own scope. Failures log and schedule delayed retry; host shutdown cancellation leaves durable pending work.
-- `PaymentLedgerPostingWorker` is disabled by default. Apply Payments and Ledger migrations and provision the caller's ledger accounts before enabling it. Set `PaymentLedgerPostingWorker:Enabled=true` (environment variable `PaymentLedgerPostingWorker__Enabled=true`). Operational defaults: BatchSize=100, PollIntervalMilliseconds=5000, RetryDelaySeconds=60; all must be positive and are validated at startup. Test enables the worker explicitly and verifies HTTP → automatic dispatch → Ledger.
-- New migration: `20261008113952_AddPaymentLedgerPostingRetrySchedule`, adding only nullable intent `next_attempt_at` and the status/next-attempt/payment index.
-- No frontend work. Audit trail, provider ingestion/webhooks, broader observability, deployment and other remaining backend roadmap work are not complete.
+- Explicit caller-supplied transaction/ledger/account IDs and fee in minor units; stored payment amount/currency. No merchant configuration or fee formula invented.
+- Succeeded payment, immutable Pending posting intent and IntentRecorded event save atomically. Matching retries retain original event; conflicting or concurrent inputs retain one winner or return conflict.
+- Dispatch writes Ledger before acknowledgment, with stable exact replay identity. Pending→Posted/first PostedAt/PostingAcknowledged event commit in one PostgreSQL statement. Replay preserves timestamp and event. PostedAt means acknowledgment time, not exact Ledger write time.
+- Successful retry scheduling appends RetryScheduled atomically with its explicit UTC next-attempt time. Missing/Posted scheduling does nothing; event failure rolls back the state update. Concurrent scheduling/acknowledgment cannot revive Posted.
+- Events contain IDs, kind, occurrence time and optional retry due time. Application appends, with restrictive intent FK and unique one-time event index. No DB-role immutability policy, actors or retention rule configured. No historical backfill invented; historical PostedAt/events remain unknown.
+- Existing GET /payments/{id}/ledger-posting now exposes nullable PostedAt alongside status/identity/NextAttemptAt. Reads do not append events or dispatch. No event-history HTTP endpoint added.
+- New migrations: `20261009030228_AddPaymentLedgerPostingAcknowledgmentTime` adds nullable posted_at; `20261009030614_AddPaymentLedgerPostingEvents` adds event table/FK/indexes only. Apply both before running updated API/worker.
+- Worker remains opt-in and disabled by default. Provision explicit supplied Ledger accounts and apply Payments/Ledger migrations before enabling. Positive operational settings validated at startup; metrics have no deployed exporter.
 
-## Next intended small slice
-- 011.9: inspect available audit requirements and repository conventions, then define the smallest durable payment-posting audit boundary with a focused RED test before implementation. Keep audit persistence/replay semantics explicit; do not introduce a cross-module transaction without separate tests.
-- Operational metrics now cover attempts, successful processing outcomes, posting failures and retry-scheduling failures. No exporter or monitoring deployment has been configured.
-- Provider-specific ingestion/webhooks require actual provider requirements; do not invent signatures or event contracts. Audit, provider work, broader deployment and the remaining backend roadmap are still incomplete. Backend remains ahead of frontend.
-- Preserve focused RED → minimal GREEN → module verification → solution/build at meaningful integration boundaries → separate commit/push, with checkpoint per slice.
+## Next intended small slice / blocking dependency
+- Payment-posting lifecycle audit scope was explicitly selected by user and is implemented/tested. Provider ingestion/webhooks next require an actual provider and its event/signature/idempotency contract; requested asynchronously, no response yet. Do not invent provider schemas/signatures.
+- Once supplied, inspect official provider contract, define one smallest backend ingestion RED test, implement minimal GREEN, focused then broader verification, commit/push separately and checkpoint. Keep backend before frontend.
+- Broader audit actors/retention, audit-history API, observability exporters, deployment and remaining backend roadmap are not claimed complete. No external deployment performed.
 
 ## 011.8D hosted worker closing slice
 - PostgreSQL assertion RED captured: HTTP success persisted intent but it remained Pending without a worker. GREEN with enabled hosted worker completes it automatically and retains one balanced Ledger transaction with three entries.
@@ -275,3 +273,9 @@
 - Module 38 passed, zero failed/skipped; build zero warnings/errors. Last full solution 293 before these three added tests; repeat at next HTTP integration boundary. No migration/frontend/accounting policy change.
 - Next: expose first acknowledgment time in existing read-only posting status response and verify full HTTP lifecycle event history without GET side effects; full solution/build then checkpoint. Provider contract remains pending; no provider assumptions.
 - Exact slice SHA from git; checkpoint included in commit, no unfinished changes at commit. Usage last observed 77% short-window/66% weekly remaining.
+
+## 2026-10-09 — HTTP acknowledgment evidence and final audit integration
+- Retry audit committed/pushed as `6376466`.
+- Compile-time RED for absent PostedAt response, then minimal result/handler projection GREEN. PostgreSQL HTTP lifecycle verifies null for Pending/scheduled, exact stored first time for Posted, all three audit kinds and immutable identities, and no audit writes on repeated GET.
+- Focused HTTP test passed; final full solution 296 passed, zero failed/skipped; build zero warnings/errors. Unit read-only tests retain null for historical/domain-only Posted without fabricated timestamps.
+- No additional migration. This closing slice is committed separately; exact SHA and remote/primary clean state recorded in workspace handoff after push.

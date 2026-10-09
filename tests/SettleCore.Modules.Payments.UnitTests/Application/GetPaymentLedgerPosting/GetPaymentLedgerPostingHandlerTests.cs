@@ -23,6 +23,7 @@ public sealed class GetPaymentLedgerPostingHandlerTests
         Assert.Equal(intent.TransactionId, result.TransactionId);
         Assert.Equal(posted ? "Posted" : "Pending", result.Status);
         Assert.Null(result.NextAttemptAt);
+        Assert.Null(result.PostedAt);
         Assert.Equal(intent.PaymentId, repository.RequestedId);
         Assert.Equal(cancellation.Token, repository.Token);
     }

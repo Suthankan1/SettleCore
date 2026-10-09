@@ -4,4 +4,5 @@ public sealed record GetPaymentLedgerPostingResult(
     Guid PaymentId,
     Guid TransactionId,
     string Status,
-    DateTimeOffset? NextAttemptAt);
+    DateTimeOffset? NextAttemptAt,
+    DateTimeOffset? PostedAt);
