@@ -1,11 +1,14 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Active continuation — 2026-10-09 Stripe backend foundation
-- User has selected Stripe PaymentIntents; prior provider-decision blocker is resolved. Keep neutral Payments contracts and Infrastructure-only SDK usage. Creation observations do not authorize completion.
-- Separately pushed: `fe1dfaa` stable creation identity, `105107f` neutral contract, `f4aed62` Stripe adapter, `ca45826` signed webhook decoder. This slice adds durable inbox/migration; exact SHA from git.
-- Latest full solution 337 passed, zero failed/skipped; build zero warnings/errors. Durable receipts do not apply payment success yet. No frontend or live Stripe calls.
-- Next: opt-in provider/decoder/inbox DI with validated explicit credentials, live/test mode and signature tolerance; then HTTP durable ingestion and explicit posting-input preparation before success application.
-- Durable continuity: this file and workspace SettleCore_HANDOFF.md. Quota last observed 37% short-window/60% weekly remaining; stop new slices at about 10%.
+## Current handback — 2026-10-09 user-requested stop
+- User explicitly requested stopping at the next commit and returning control to chat. No further implementation slice started. Closing documentation commit contains this checkpoint; final exact SHA is in workspace SettleCore_HANDOFF.md and Git.
+- Latest implementation committed/pushed: `2182bb9fcf296808386918026b9deb6e9a9e9167` opt-in Stripe configuration/DI. Prior slices: `fe1dfaa` identity, `105107f` neutral contract, `f4aed62` adapter, `ca45826` decoder, `5e35891` durable inbox.
+- Last full solution: 337 passed, zero failed/skipped after inbox migration. Latest changed host module: 86 passed including seven new configuration tests; final full solution build zero warnings/errors. No fresh full-solution run after configuration slice; do not present 344 as a verified full run.
+- Stripe selected and implemented behind neutral Payments boundaries. Signed success decoding and durable inbox are verified but not connected to an HTTP endpoint or local success processing. Explicit posting-input preparation and stored provider-reference/amount/currency/mode correlation remain required. No frontend, deployment or live Stripe calls.
+- Apply `20261009033110_AddPaymentProviderEventInbox` before enabling ingress. Stripe disabled by default; explicit API key, webhook secret, positive SignatureToleranceSeconds and IsLiveMode required. No credentials committed.
+- Next smallest RED: opt-in POST /payments/webhooks/stripe persists authenticated raw-body delivery before 200, matching replay 200, invalid signature/mode 400, conflicting event 409, storage failure never 200. Then preparation/correlation and atomic authoritative success processing; do not infer accounts or fee policy.
+- Repository clean before this documentation edit; no unfinished implementation changes. Clean primary checkout will fast-forward to final pushed commit, with verified result recorded in workspace handoff.
+- Durable continuity: this tracked file and workspace SettleCore_HANDOFF.md. Account-wide memory editing and automatic UI mode switching unavailable. Visible quota 29% short-window/59% weekly remaining; stopping at user request, not quota.
 
 ## Historical handback — 2026-10-09 lifecycle audit complete
 - Fresh baseline was clean main `4b2b3b21312895dc29e5b1b6d15c0450da3fe588`, independently verified against GitHub; full baseline 289 passed.
