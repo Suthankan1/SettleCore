@@ -279,3 +279,11 @@
 - Compile-time RED for absent PostedAt response, then minimal result/handler projection GREEN. PostgreSQL HTTP lifecycle verifies null for Pending/scheduled, exact stored first time for Posted, all three audit kinds and immutable identities, and no audit writes on repeated GET.
 - Focused HTTP test passed; final full solution 296 passed, zero failed/skipped; build zero warnings/errors. Unit read-only tests retain null for historical/domain-only Posted without fabricated timestamps.
 - No additional migration. This closing slice is committed separately; exact SHA and remote/primary clean state recorded in workspace handoff after push.
+
+## 2026-10-09 — provider request identity foundation
+- Fresh local mirror, primary checkout and GitHub main all independently matched clean `45b663918b2bb818cf3128a161dc7a24032ce67c`. Baseline full solution 296 passed; build zero warnings/errors.
+- User selected Stripe PaymentIntents; authoritative webhook completion, Infrastructure-only Stripe SDK, neutral application contract. Provider dependency is now resolved. Explicit accounting inputs/fees remain required; no frontend changes.
+- Compile-time focused RED captured before adding immutable CreateProviderPaymentRequest. GREEN validates identity, positive minor-unit amount and ASCII currency code; normalizes currency and derives operation-scoped idempotency solely from payment ID. Same identity reuses its key; different identity differs. No caller override or rounding.
+- Payments unit module 118 passed (8 added cases), zero failed/skipped; full solution build zero warnings/errors. Baseline evidence and focused RED/GREEN logs in /tmp/settlecore-*.log.
+- Next: neutral IPaymentProvider/result/status boundary, then Stripe Infrastructure adapter tested with fake HTTP transport before application wiring and signed durable webhook ingestion. Creation must never mark local payment succeeded.
+- Durable continuity is tracked PROJECT_CHECKPOINT.md and workspace SettleCore_HANDOFF.md; account-wide memory editing and automatic UI mode switching unavailable. Visible quota last observed 66% short-window/65% weekly remaining.
