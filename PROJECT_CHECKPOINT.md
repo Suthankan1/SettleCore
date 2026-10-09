@@ -251,3 +251,11 @@
 - Payments infrastructure 33 passed; full solution 291 passed, zero failed/skipped; build zero warnings/errors. No frontend/accounting defaults. This checkpoint is included in the separate slice commit; exact SHA from git.
 - User explicitly selected payment-posting lifecycle audit scope: intent recorded, retry scheduled, posting acknowledged. Next: durable append-only event records, with same-store atomic state/event writes and replay/concurrency/rollback tests.
 - Durable memory remains this tracked checkpoint and workspace handoff; no account-wide memory editor or automatic mode-switch control available. Usage observed 92% short-window/69% weekly remaining before full verification.
+
+## 2026-10-09 — durable intent-recorded lifecycle event
+- Acknowledgment evidence committed/pushed as `bbc4068`.
+- User-approved scope: payment-posting lifecycle events only. Added immutable event values/table with event identity, payment/transaction identity, kind, UTC occurrence and optional scheduled time. Restrictive intent FK; unique partial index for one-time intent/acknowledgment events; chronological lookup index. No actors, retention policy or historical backfill invented.
+- IntentRecorded appended in the existing payment-success/intent SaveChanges transaction. Matching replay does not append. Unique-race handling detaches the failed event as well as payment/intent, preserving usable contexts and the winning event.
+- Compile-time RED captured; 16 focused persistence/retry cases GREEN, then added audit-insert failure rollback test. Module 34 passed, zero failed/skipped; solution build zero warnings/errors. Last full solution 291 before this one extra case; repeat after dispatch event integration.
+- Migration `20261009030614_AddPaymentLedgerPostingEvents` creates only event table, FK and indexes. Application writes append events; this is not a database-role immutability/security policy.
+- Next: atomic acknowledgment/retry events with PostgreSQL failure/replay/concurrency tests, then full-solution verification. No unfinished source changes at commit; exact SHA from git. Usage last observed 86% short-window/68% weekly remaining.

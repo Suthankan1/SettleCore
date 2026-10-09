@@ -67,6 +67,9 @@ public sealed class PaymentSuccessRetryTests
         Assert.Equal(original.Currency, stored.Currency);
         Assert.Equal(original.GrossAmountMinorUnits, stored.GrossAmountMinorUnits);
         Assert.Equal(original.FeeAmountMinorUnits, stored.FeeAmountMinorUnits);
+        var audit = Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
+        Assert.Equal(stored.TransactionId, audit.TransactionId);
+        Assert.Equal(PaymentLedgerPostingEventKind.IntentRecorded, audit.Kind);
     }
 
     [Theory]
@@ -119,6 +122,9 @@ public sealed class PaymentSuccessRetryTests
         var stored = Assert.Single(await reader.PaymentLedgerPostingIntents.ToListAsync());
         Assert.Contains(stored.TransactionId, new[] { original.TransactionId, alternative.TransactionId });
         Assert.Equal(original.FeeAmountMinorUnits, stored.FeeAmountMinorUnits);
+        var audit = Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
+        Assert.Equal(stored.TransactionId, audit.TransactionId);
+        Assert.Equal(PaymentLedgerPostingEventKind.IntentRecorded, audit.Kind);
     }
 
     [Fact]

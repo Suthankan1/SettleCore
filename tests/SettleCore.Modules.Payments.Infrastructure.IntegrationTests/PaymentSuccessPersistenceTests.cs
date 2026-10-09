@@ -50,6 +50,7 @@ public sealed class PaymentSuccessPersistenceTests
         if (invalidIntent)
         {
             Assert.Empty(await reader.PaymentLedgerPostingIntents.ToListAsync());
+            Assert.Empty(await reader.PaymentLedgerPostingEvents.ToListAsync());
             return;
         }
         var storedIntent = await reader.PaymentLedgerPostingIntents
@@ -59,6 +60,13 @@ public sealed class PaymentSuccessPersistenceTests
             Assert.Equal(intent.TransactionId, storedIntent.TransactionId);
         }
         Assert.Equal(PaymentLedgerPostingIntentStatus.Pending, storedIntent.Status);
+        var audit = Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
+        Assert.Equal(payment.Id, audit.PaymentId);
+        Assert.Equal(intent.TransactionId, audit.TransactionId);
+        Assert.Equal(PaymentLedgerPostingEventKind.IntentRecorded, audit.Kind);
+        Assert.NotEqual(default, audit.OccurredAt);
+        await new EfPaymentSuccessPersistence(reader).SaveAsync(stored, intent);
+        Assert.Single(await reader.PaymentLedgerPostingEvents.ToListAsync());
     }
 
     [Theory]
@@ -87,6 +95,29 @@ public sealed class PaymentSuccessPersistenceTests
         Assert.Equal(PaymentStatus.Pending,
             (await reader.Payments.SingleAsync()).Status);
         Assert.Empty(await reader.PaymentLedgerPostingIntents.ToListAsync());
+    }
+
+    [Fact]
+    public async Task AuditInsertFailureRollsBackPaymentSuccessAndIntent()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseNpgsql(postgres.GetConnectionString()).Options;
+        await using var writer = new PaymentsDbContext(options);
+        await writer.Database.MigrateAsync();
+        var payment = Payment.Create(100m, "SGD");
+        writer.Payments.Add(payment);
+        await writer.SaveChangesAsync();
+        await writer.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE payment_ledger_posting_events ADD CONSTRAINT reject_audit CHECK (false)");
+        payment.MarkSucceeded();
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            new EfPaymentSuccessPersistence(writer).SaveAsync(payment, CreateIntent(payment.Id)));
+        await using var reader = new PaymentsDbContext(options);
+        Assert.Equal(PaymentStatus.Pending, (await reader.Payments.SingleAsync()).Status);
+        Assert.Empty(await reader.PaymentLedgerPostingIntents.ToListAsync());
+        Assert.Empty(await reader.PaymentLedgerPostingEvents.ToListAsync());
     }
 
     private static PaymentLedgerPostingIntent CreateIntent(PaymentId paymentId)

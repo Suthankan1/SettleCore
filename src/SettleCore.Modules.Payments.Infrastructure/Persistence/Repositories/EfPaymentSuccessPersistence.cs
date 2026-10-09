@@ -6,7 +6,8 @@ using SettleCore.Modules.Payments.Domain;
 
 namespace SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
 
-public sealed class EfPaymentSuccessPersistence(PaymentsDbContext dbContext)
+public sealed class EfPaymentSuccessPersistence(
+    PaymentsDbContext dbContext, TimeProvider? timeProvider = null)
     : IPaymentSuccessPersistence
 {
     public async Task SaveAsync(
@@ -42,6 +43,10 @@ public sealed class EfPaymentSuccessPersistence(PaymentsDbContext dbContext)
 
         dbContext.Payments.Update(payment);
         await dbContext.PaymentLedgerPostingIntents.AddAsync(intent, cancellationToken);
+        var audit = new PaymentLedgerPostingEvent(Guid.NewGuid(), intent.PaymentId,
+            intent.TransactionId, PaymentLedgerPostingEventKind.IntentRecorded,
+            (timeProvider ?? TimeProvider.System).GetUtcNow(), null);
+        await dbContext.PaymentLedgerPostingEvents.AddAsync(audit, cancellationToken);
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -53,7 +58,8 @@ public sealed class EfPaymentSuccessPersistence(PaymentsDbContext dbContext)
                 ConstraintName: "PK_payment_ledger_posting_intents"
             })
         {
-            // The failed transaction rolled back both writes. Discard only this pair.
+            // The failed transaction rolled back all three writes. Discard this attempt.
+            dbContext.Entry(audit).State = EntityState.Detached;
             dbContext.Entry(intent).State = EntityState.Detached;
             dbContext.Entry(payment).State = EntityState.Detached;
             existing = await dbContext.PaymentLedgerPostingIntents.AsNoTracking()
