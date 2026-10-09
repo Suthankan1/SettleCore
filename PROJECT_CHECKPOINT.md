@@ -287,3 +287,10 @@
 - Payments unit module 118 passed (8 added cases), zero failed/skipped; full solution build zero warnings/errors. Baseline evidence and focused RED/GREEN logs in /tmp/settlecore-*.log.
 - Next: neutral IPaymentProvider/result/status boundary, then Stripe Infrastructure adapter tested with fake HTTP transport before application wiring and signed durable webhook ingestion. Creation must never mark local payment succeeded.
 - Durable continuity is tracked PROJECT_CHECKPOINT.md and workspace SettleCore_HANDOFF.md; account-wide memory editing and automatic UI mode switching unavailable. Visible quota last observed 66% short-window/65% weekly remaining.
+
+## 2026-10-09 — neutral provider contract
+- Request foundation committed/pushed separately as `fe1dfaa`.
+- Focused compile-time RED then GREEN for Payments-owned IPaymentProvider/CreateProviderPaymentResult/ProviderPaymentStatus. Result reuses neutral ProviderPaymentReference; nullable client secret is response data, not persisted or logged. Contract forwards cancellation and preserves local Pending status.
+- Neutral statuses include processing, capture-required and canceled, avoiding premature success/failure assumptions. Requires-payment-method remains retryable Pending in the upcoming adapter; unknown provider statuses must fail explicitly.
+- Payments unit module 119 passed; full build zero warnings/errors. No Infrastructure SDK dependency in Domain/Application.
+- Next: pinned official Stripe.net SDK in Infrastructure, isolated transport RED tests for PaymentIntent payload/idempotency/metadata and status normalization, then minimal adapter GREEN. No live provider credentials required for those tests.
