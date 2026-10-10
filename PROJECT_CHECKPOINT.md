@@ -1,5 +1,11 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Stored-reference HTTP recovery — 2026-10-10
+- Lookup adapter separately pushed16fff80; readiness4145a29 CI green. HTTP behavioral RED405 then GREEN for neutral stored-payment lookup handler and GET /payments/{id}/provider-payment. Disabled/missing/unlinked404, correlation mismatch409 without secret. Successful response no-store; SDK GET exact stored intent, no new creation POST. Lookup observations never mutate local payment/intent/audit.
+- All3 provider-flow tests passed; full Release429 passed, zero failed/skipped; build zero warnings/errors.
+- Next remaining safety gap: unlinked orphan after provider success/reference-storage failure can be retried beyond Stripe idempotency retention. Persist first creation attempt before outbound call and bound automatic retries; stale attempts require explicit reconciliation, never fresh blind creation. Then operations docs/final verification. User explicitly backend-only.
+- Quota last35% short-window/33% weekly remaining.
+
 ## Neutral provider lookup and Stripe adapter — 2026-10-10
 - Readiness separately pushed4145a29. Compile RED then7 GREEN transport cases for separate neutral lookup request/port and Infrastructure-only Stripe retrieval adapter. GET uses stored reference; identity metadata, reference, amount, currency and explicitly configured mode must match before returning response-only secret/status. Wrong provider rejected before I/O. No local success mutation.
 - Reuses existing status normalization; no SDK/core coupling. Infrastructure104 passed; full Release build zero warnings/errors. Latest full422 before7 added cases; no HTTP/DI lookup wiring yet.

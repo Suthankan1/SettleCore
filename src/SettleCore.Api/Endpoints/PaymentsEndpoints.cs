@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using SettleCore.Modules.Payments.Application.GetProviderPayment;
 using SettleCore.Modules.Payments.Application.CreateProviderPayment;
 using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
@@ -332,6 +333,36 @@ public static class PaymentsEndpoints
             }
         })
         .WithName("CreateProviderPayment")
+        .Produces<CreateProviderPaymentResult>(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict);
+
+        endpoints.MapGet("/payments/{paymentId:guid}/provider-payment", async Task<IResult> (
+            Guid paymentId, HttpResponse response, IOptions<StripePaymentOptions> options,
+            IServiceProvider services, CancellationToken cancellationToken) =>
+        {
+            if (!options.Value.Enabled) return Results.NotFound();
+            response.Headers.CacheControl = "no-store";
+            try
+            {
+                var handler = services.GetRequiredService<GetProviderPaymentHandler>();
+                var result = await handler.HandleAsync(paymentId, cancellationToken);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (ArgumentException exception)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    [exception.ParamName ?? "paymentId"] = [exception.Message]
+                });
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Conflict();
+            }
+        })
+        .WithName("GetProviderPayment")
         .Produces<CreateProviderPaymentResult>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status404NotFound)

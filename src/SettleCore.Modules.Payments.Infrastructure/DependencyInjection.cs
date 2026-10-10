@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using SettleCore.Modules.Payments.Application.GetProviderPayment;
 using SettleCore.Modules.Payments.Application.CreateProviderPayment;
 using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using Microsoft.EntityFrameworkCore;
@@ -47,6 +48,7 @@ public static class DependencyInjection
             return new global::Stripe.StripeClient(settings.ApiKey);
         });
         services.AddSingleton<IPaymentProvider, StripePaymentProvider>();
+        services.AddSingleton<IPaymentProviderReader, StripePaymentProviderReader>();
         services.AddSingleton<IPaymentProviderWebhookDecoder>(provider =>
         {
             var settings = provider.GetRequiredService<IOptions<StripePaymentOptions>>().Value;
@@ -85,6 +87,7 @@ public static class DependencyInjection
 
         services.AddScoped<CreatePaymentHandler>();
         services.AddScoped<CreateProviderPaymentHandler>();
+        services.AddScoped<GetProviderPaymentHandler>();
         services.AddScoped<PreparePaymentLedgerPostingHandler>();
         services.AddScoped<GetPaymentByIdHandler>();
         services.AddScoped<GetPaymentLedgerPostingHandler>();

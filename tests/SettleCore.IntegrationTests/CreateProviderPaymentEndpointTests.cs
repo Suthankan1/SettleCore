@@ -30,6 +30,7 @@ public sealed class CreateProviderPaymentEndpointTests
         using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync($"/payments/{Guid.NewGuid()}/provider-payment", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/payments/{Guid.NewGuid()}/provider-payment")).StatusCode);
     }
 
     [Fact]
@@ -44,10 +45,12 @@ public sealed class CreateProviderPaymentEndpointTests
         using (var scope = factory.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>().Database.MigrateAsync();
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync($"/payments/{Guid.NewGuid()}/provider-payment", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/payments/{Guid.NewGuid()}/provider-payment")).StatusCode);
         var created = await client.PostAsJsonAsync("/payments", new { amount = 12.34m, currency = "SGD" });
         var payment = Assert.IsType<CreatePaymentResult>(await created.Content.ReadFromJsonAsync<CreatePaymentResult>());
         var path = $"/payments/{payment.PaymentId}/provider-payment";
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync(path, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(path)).StatusCode);
         Assert.Equal(0, transport.Calls);
         var input = new PaymentLedgerPostingInput(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 34);
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync($"/payments/{payment.PaymentId}/ledger-posting/preparation", input)).StatusCode);
@@ -65,6 +68,17 @@ public sealed class CreateProviderPaymentEndpointTests
         Assert.False(transport.Fields.ContainsKey("application_fee_amount"));
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync(path, null)).StatusCode);
         Assert.Equal(1, transport.Calls);
+        using var recovered = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, recovered.StatusCode);
+        Assert.True(recovered.Headers.CacheControl?.NoStore);
+        using var recoveredJson = JsonDocument.Parse(await recovered.Content.ReadAsStringAsync());
+        Assert.Equal("test-client-secret", recoveredJson.RootElement.GetProperty("clientSecret").GetString());
+        Assert.Equal(1, transport.Calls);
+        Assert.Equal(1, transport.LookupCalls);
+        transport.MismatchLookup = true;
+        using var conflict = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        Assert.DoesNotContain("test-client-secret", await conflict.Content.ReadAsStringAsync(), StringComparison.Ordinal);
         using var final = factory.Services.CreateScope();
         var db = final.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var stored = await db.Payments.SingleAsync();
@@ -198,18 +212,34 @@ public sealed class CreateProviderPaymentEndpointTests
     private sealed class Transport : HttpMessageHandler
     {
         public int Calls { get; private set; }
+        public int LookupCalls { get; private set; }
+        public bool MismatchLookup { get; set; }
         public string? IdempotencyKey { get; private set; }
         public Dictionary<string, string> Fields { get; private set; } = [];
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Calls++;
-            IdempotencyKey = request.Headers.GetValues("Idempotency-Key").Single();
-            var body = await request.Content!.ReadAsStringAsync(cancellationToken);
-            Fields = body.Split('&').Select(pair => pair.Split('=', 2)).ToDictionary(
-                pair => WebUtility.UrlDecode(pair[0]), pair => WebUtility.UrlDecode(pair[1]));
+            if (request.Method == HttpMethod.Post)
+            {
+                Calls++;
+                IdempotencyKey = request.Headers.GetValues("Idempotency-Key").Single();
+                var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+                Fields = body.Split('&').Select(pair => pair.Split('=', 2)).ToDictionary(
+                    pair => WebUtility.UrlDecode(pair[0]), pair => WebUtility.UrlDecode(pair[1]));
+            }
+            else
+            {
+                Assert.Equal(HttpMethod.Get, request.Method);
+                Assert.EndsWith("/v1/payment_intents/pi_http_create", request.RequestUri!.AbsoluteUri, StringComparison.Ordinal);
+                LookupCalls++;
+            }
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("""{"id":"pi_http_create","object":"payment_intent","amount":1234,"currency":"sgd","status":"succeeded","client_secret":"test-client-secret"}""", Encoding.UTF8, "application/json")
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    id = "pi_http_create", @object = "payment_intent", amount = MismatchLookup ? 1235 : 1234,
+                    currency = "sgd", status = "succeeded", client_secret = "test-client-secret", livemode = false,
+                    metadata = new { settlecore_payment_id = Fields["metadata[settlecore_payment_id]"] }
+                }), Encoding.UTF8, "application/json")
             };
         }
     }
