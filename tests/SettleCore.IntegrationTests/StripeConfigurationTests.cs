@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SettleCore.Modules.Payments.Application.Abstractions;
+using SettleCore.Modules.Payments.Infrastructure;
 using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
 
@@ -47,7 +48,43 @@ public sealed class StripeConfigurationTests
     public void IncompleteEnabledConfigurationPreventsStartup(string setting, string? value)
     {
         using var factory = new StripeFactory(setting, value);
-        Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+    }
+
+    [Theory]
+    [InlineData("ApiKey", "")]
+    [InlineData("WebhookSecret", "")]
+    [InlineData("SignatureToleranceSeconds", "0")]
+    [InlineData("SignatureToleranceSeconds", "-1")]
+    [InlineData("IsLiveMode", null)]
+    public void IncompleteEnabledConfigurationFailsOptionsValidation(string setting, string? value)
+    {
+        var values = StripeConfiguration(setting, value);
+        values["ConnectionStrings:Payments"] = "Host=localhost;Database=payments;Username=postgres;Password=postgres";
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+        var services = new ServiceCollection();
+        services.AddPaymentsModule(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        var exception = Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<StripePaymentOptions>>().Value);
+        Assert.Equal(typeof(StripePaymentOptions), exception.OptionsType);
+        Assert.Contains("Enabled Stripe requires explicit API key, webhook secret, positive signature tolerance and live/test mode.",
+            exception.Failures);
+    }
+
+    private static Dictionary<string, string?> StripeConfiguration(string? setting = null, string? value = null)
+    {
+        var values = new Dictionary<string, string?>
+        {
+            ["Payments:Stripe:Enabled"] = "true",
+            ["Payments:Stripe:ApiKey"] = "sk_test_placeholder",
+            ["Payments:Stripe:WebhookSecret"] = "whsec_test_placeholder",
+            ["Payments:Stripe:SignatureToleranceSeconds"] = "300",
+            ["Payments:Stripe:IsLiveMode"] = "false"
+        };
+        if (setting is not null) values[$"Payments:Stripe:{setting}"] = value;
+        return values;
     }
 
     [Fact]
@@ -69,16 +106,7 @@ public sealed class StripeConfigurationTests
         {
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
-                var values = new Dictionary<string, string?>
-                {
-                    ["Payments:Stripe:Enabled"] = "true",
-                    ["Payments:Stripe:ApiKey"] = "sk_test_placeholder",
-                    ["Payments:Stripe:WebhookSecret"] = "whsec_test_placeholder",
-                    ["Payments:Stripe:SignatureToleranceSeconds"] = "300",
-                    ["Payments:Stripe:IsLiveMode"] = "false"
-                };
-                if (setting is not null) values[$"Payments:Stripe:{setting}"] = value;
-                configuration.AddInMemoryCollection(values);
+                configuration.AddInMemoryCollection(StripeConfiguration(setting, value));
             });
         }
     }

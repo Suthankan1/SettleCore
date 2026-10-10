@@ -1,5 +1,11 @@
 # SettleCore checkpoint — 2026-10-10
 
+## CI repair — 2026-10-10
+- Inspected clean main at f4da386; fetched origin and confirmed latest CI failure was Stripe startup exception mismatch for empty WebhookSecret.
+- Host test now asserts invalid enabled configuration prevents startup regardless of cleanup exception; five deterministic production DI/options cases assert exact OptionsValidationException, options type and validation failure. No production behavior changed.
+- Focused Stripe tests13 passed; CI-equivalent Release restore/build/full tests succeeded399 passed, zero failed/skipped; build zero warnings/errors. Separate repair commit follows; GitHub CI must be green before feature work.
+- Next: default-disabled provider event worker with validated positive settings and enabled Stripe/explicit mode, then signed HTTP-to-automatic success/intent/audit proof. Architecture and explicit posting-input constraints preserved.
+
 ## Current handback — 2026-10-10 near quota threshold
 - Stopped starting implementation at14% remaining; latest observed11% short-window/44% weekly remaining. Final full solution completed394 passed, zero failed/skipped; latest full build zero warnings/errors. No unfinished source/test/migration changes; documentation-only closing commit contains this checkpoint. Exact closing SHA in workspace SettleCore_HANDOFF.md and Git.
 - Latest implementation committed/pushed `cdaef06ecab5a4d2b520b7ad4825eb212d8cb7c1`. Nine separate verified slices from baseline `03421b13930fd40a933fff51094d5fb79615dbef`: `9ad8304` signed HTTP ingress, `de7cbcf` neutral correlation, `04fcf8f` preparation storage, `a6dab11` preparation API, `547041d` atomic receipt completion, `0a5dc9a` concurrency-safe reference writes, `32095cd` manual bypass guards, `d1e967e` inbox due/retry schedule, `cdaef06` scoped retrying batches.
