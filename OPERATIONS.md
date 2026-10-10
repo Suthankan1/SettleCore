@@ -12,9 +12,9 @@ dotnet build SettleCore.slnx --configuration Release --no-restore
 dotnet test SettleCore.slnx --configuration Release --no-build --verbosity normal
 ```
 
-Supply `ConnectionStrings__Payments`, `ConnectionStrings__Ledger` and `ConnectionStrings__Reconciliation` through the deployment's secret/configuration mechanism. Development connection strings are local examples. Production has no database defaults. Keep credentials out of tracked configuration and verification logs.
+Supply `ConnectionStrings__Payments`, `ConnectionStrings__Ledger` and `ConnectionStrings__Reconciliation` through private local process environment or a local secret store. Development connection strings are local examples. Production has no database defaults. Keep credentials out of tracked configuration and verification logs.
 
-Apply all module migrations before routing traffic or enabling workers. Use the infrastructure project as both project and startup project; each has its own design-time context factory. Always provide the intended connection explicitly so the design-time database is not selected accidentally.
+Apply all module migrations before starting the local flow or enabling workers. Use the infrastructure project as both project and startup project; each has its own design-time context factory. Always provide the intended connection explicitly so the design-time database is not selected accidentally.
 
 ```sh
 dotnet tool restore --tool-manifest dotnet-tools.json
@@ -64,11 +64,13 @@ If creation succeeded remotely but reference persistence failed, retry with the 
 
 Stripe v1 keys can be pruned after at least 24 hours; reuse after pruning may create another object. See [Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests) and [PaymentIntent reuse and client-secret handling](https://docs.stripe.com/payments/payment-intents).
 
-## Remaining production work
+## Acceptance boundary
 
-The backend flow is verified using the actual SDK over isolated transport and real PostgreSQL, including separate Payments/Ledger stores. Live Stripe test-mode acceptance, credentials, deployment, customer/operator authentication and authorization, TLS/proxy configuration, account provisioning API, reconciliation of stale orphaned creation attempts, provider receipt operational metrics and release procedures remain separate work. No production deployment or live payment is claimed. Frontend is explicitly outside this continuation.
+The agreed local backend scope is verified with the actual SDK over isolated fake transport, real PostgreSQL, default-on operator controls, explicit account provisioning and safe original-intent recovery. The complete acceptance includes all module migrations/readiness and both workers. Real local HTTPS operator/manual-payment flow is also verified. See [acceptance evidence](docs/ACCEPTANCE.md) and [the reproducible demo](docs/LOCAL_DEMO.md).
 
-The posting metrics meter is `SettleCore.Payments`, with `settlecore.payment_posting.attempts`, `.completed`, `.failures` and `.retry_scheduling_failures`. Receipt processing currently emits bounded operational logs with provider/event identity; it does not log raw webhook bodies or client secrets. Tracked `PROJECT_CHECKPOINT.md` and the workspace handoff file record exact continuation state.
+External Stripe TEST-mode acceptance remains optional and unverified because credentials were not supplied. Customer/tenant identities, refunds/payouts, merchant routing/fee policy, frontend and deployment are outside this portfolio scope. No hosted rollout or live payment is claimed. Older checkpoint entries describe historical remaining work; the newest acceptance entry is authoritative for current scope.
+
+The posting metrics meter is `SettleCore.Payments`, with `settlecore.payment_posting.attempts`, `.completed`, `.failures` and `.retry_scheduling_failures`. Receipt processing emits bounded operational logs with provider/event identity; raw webhook bodies and client secrets are not logged. Tracked `PROJECT_CHECKPOINT.md` provides durable continuity; automatic chat switching and account-wide memory editing are not claimed.
 
 Receipt worker metrics use the same meter, with `settlecore.provider_receipts.attempts`, `.completed`, `.deferred`, `.failures` and `.retry_scheduling_failures`. They have no tags. Completion counts processing outcomes (including already-processed replays), not unique charges. Deferral means missing local prerequisites; exceptions and retry-write failures have separate counters. Host cancellation does not count as failure.
 
