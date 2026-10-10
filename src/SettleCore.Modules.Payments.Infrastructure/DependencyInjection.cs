@@ -54,6 +54,7 @@ public static class DependencyInjection
                 provider.GetRequiredService<TimeProvider>());
         });
         services.AddScoped<IPaymentProviderEventInbox, EfPaymentProviderEventInbox>();
+        services.AddScoped<IPaymentProviderEventProcessor, EfPaymentProviderEventProcessor>();
         services.AddScoped<IPaymentLedgerPostingPreparationRepository, EfPaymentLedgerPostingPreparationRepository>();
 
         services.AddDbContext<PaymentsDbContext>(

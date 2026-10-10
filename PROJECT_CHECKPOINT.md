@@ -1,6 +1,14 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current progress — 2026-10-10 explicit preparation API
+## Current progress — 2026-10-10 atomic authoritative receipt completion
+- Preparation API separately committed/pushed `a6dab11aa293d9f307d22093da768fde3b3762f4`.
+- Focused compile RED then14 PostgreSQL GREEN cases for neutral event-processing contract and Infrastructure transaction. Locks receipt then payment, validates stored reference/identity/amount/currency/explicit mode, requires immutable explicit preparation, and commits payment success+Pending dispatch intent+IntentRecorded audit+receipt ProcessedAt together.
+- Matching replay preserves first ProcessedAt. Concurrent same/distinct events serialize and retain one intent/audit. Missing receipt/payment/reference/preparation stays unprocessed; early missing-reference delivery processes after local reference arrives. Mismatched evidence cannot authorize success. Forced receipt update failure rolls all success writes back and retry succeeds. EF payment materialization uses ordinary mapped query after scalar row lock to preserve optional complex reference mapping.
+- Infrastructure89 passed; full solution383 passed, zero failed/skipped; full build zero warnings/errors. No new migration/worker/frontend/external calls. This commit contains processor/checkpoint; exact SHA in workspace handoff after push.
+- Next: retry-aware opt-in worker to process durable inbox; protect provider-linked payments from manual success bypass; provider creation must persist reference without regressing status under concurrent webhooks. Existing reference attachment overwrites whole tracked payment and needs a focused concurrency repair before connecting provider creation.
+- Quota last57% short-window/51% weekly remaining. No account-wide memory/UI switch; tracked file/workspace handoff are durable continuity.
+
+## Earlier slice — 2026-10-10 explicit preparation API
 - Preparation repository/migration separately committed/pushed `04fcf8f20533420f6e651d72501363e1c4ffa8b5`.
 - Behavioral HTTP RED404 then GREEN for POST /payments/{id}/ledger-posting/preparation. Neutral application handler validates explicit transaction/ledger/account IDs and fee through existing factory using stored amount/currency. Returns validated complete request, persists immutable preparation only; no status change/intent/audit write.
 - Real PostgreSQL HTTP case verifies invalid input400 without writes, missing404, matching replay200, conflicting inputs409 and Pending status. Host module95 passed, zero failed/skipped; full solution build zero warnings/errors. Last full solution368 before this endpoint slice; no unverified aggregate claimed.
