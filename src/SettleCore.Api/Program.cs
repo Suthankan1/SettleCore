@@ -31,6 +31,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapPaymentsEndpoints();
+app.MapStripeWebhookEndpoints();
 app.MapReconciliationEndpoints();
 app.MapLedgerEndpoints();
 

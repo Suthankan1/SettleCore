@@ -1,6 +1,15 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current handback — 2026-10-09 user-requested stop
+## Current progress — 2026-10-10 signed HTTP ingress
+- Resumed actual clean main `03421b13930fd40a933fff51094d5fb79615dbef`, independently matched GitHub. Older sibling SettleCore checkout was not used. Fresh baseline 344 tests passed, zero failures/skips.
+- Focused behavioral RED: seven HTTP cases returned 404; disabled case passed. GREEN: eight HTTP tests including real PostgreSQL durable receipt, identical replay, conflicting evidence, signature/mode rejection, unrelated signed event, unavailable storage and disabled ingress.
+- POST /payments/webhooks/stripe reads unchanged raw body, verifies through neutral decoder, checks explicit mode and awaits scoped durable inbox before 200. Invalid signature/mode 400, conflicting replay 409, disabled 404; storage exceptions cannot return 200. No SDK types entered core; no local success or ledger writes triggered by receipt.
+- Full solution 352 passed, zero failed/skipped; full build zero warnings/errors. No schema/frontend/live Stripe changes. Existing inbox migration required before enabling ingress. Snapshot event API version must match the pinned SDK. Official contract: https://docs.stripe.com/webhooks.
+- This commit contains the slice and checkpoint; exact final SHA recorded in workspace SettleCore_HANDOFF.md after push. No unfinished implementation at commit.
+- Next smallest slice: neutral stored-payment success evidence correlation (identity, stored provider reference, exact minor-unit amount/currency and explicit expected mode), then durable explicit accounting preparation and atomic authoritative inbox processing. Never infer accounting accounts or fees.
+- Continuity uses this tracked checkpoint and workspace handoff; account-wide memory editing and automatic mode switching unavailable. Quota visible last 90% short-window/56% weekly remaining; keep observing approximately 10% stop threshold.
+
+## Historical handback — 2026-10-09 user-requested stop
 - User explicitly requested stopping at the next commit and returning control to chat. No further implementation slice started. Closing documentation commit contains this checkpoint; final exact SHA is in workspace SettleCore_HANDOFF.md and Git.
 - Latest implementation committed/pushed: `2182bb9fcf296808386918026b9deb6e9a9e9167` opt-in Stripe configuration/DI. Prior slices: `fe1dfaa` identity, `105107f` neutral contract, `f4aed62` adapter, `ca45826` decoder, `5e35891` durable inbox.
 - Last full solution: 337 passed, zero failed/skipped after inbox migration. Latest changed host module: 86 passed including seven new configuration tests; final full solution build zero warnings/errors. No fresh full-solution run after configuration slice; do not present 344 as a verified full run.
