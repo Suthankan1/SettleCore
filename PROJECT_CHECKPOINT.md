@@ -1,5 +1,11 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Hosted provider receipt worker — 2026-10-10
+- CI repair separately pushed as 1ad7d4b878fcc51b2800d3547c47d9d5c36be6b8; GitHub run38041390161 green before feature edits.
+- Focused compile RED for missing options, then PostgreSQL behavioral RED: signed durable receipt stayed unprocessed. Minimal GREEN adds default-disabled hosted worker invoking existing scoped retrying processor; explicit enabled Stripe/test-live mode and positive batch/poll/retry settings required. Shutdown leaves durable receipts; batch failures retry on next poll.
+- Signed HTTP test verifies automatic correlated success, single posting intent and audit. Focused15 passed; full solution406 passed, zero failed/skipped; Release build zero warnings/errors. No migrations, SDK in core, accounting defaults or frontend.
+- Next: neutral provider creation application use case requiring persisted explicit posting preparation, then HTTP composition with safe response/reference persistence and no authoritative success from creation observations.
+
 ## CI repair — 2026-10-10
 - Inspected clean main at f4da386; fetched origin and confirmed latest CI failure was Stripe startup exception mismatch for empty WebhookSecret.
 - Host test now asserts invalid enabled configuration prevents startup regardless of cleanup exception; five deterministic production DI/options cases assert exact OptionsValidationException, options type and validation failure. No production behavior changed.

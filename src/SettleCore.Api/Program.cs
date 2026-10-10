@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using SettleCore.Api.Endpoints;
 using SettleCore.Api.BackgroundTasks;
 using SettleCore.Modules.Ledger.Infrastructure;
@@ -16,6 +18,17 @@ builder.Services.AddOptions<PaymentLedgerPostingWorkerOptions>()
         "Payment posting batch size, poll interval and retry delay must be positive.")
     .ValidateOnStart();
 builder.Services.AddHostedService<PaymentLedgerPostingWorker>();
+
+builder.Services.AddOptions<PaymentProviderEventWorkerOptions>()
+    .Bind(builder.Configuration.GetSection("PaymentProviderEventWorker"))
+    .Validate(static settings => settings.BatchSize > 0 &&
+        settings.PollIntervalMilliseconds > 0 && settings.RetryDelaySeconds > 0,
+        "Provider event batch size, poll interval and retry delay must be positive.")
+    .Validate<IOptions<StripePaymentOptions>>(static (settings, stripe) =>
+        !settings.Enabled || (stripe.Value.Enabled && stripe.Value.IsLiveMode.HasValue),
+        "Provider event worker requires enabled Stripe with explicit live/test mode.")
+    .ValidateOnStart();
+builder.Services.AddHostedService<PaymentProviderEventWorker>();
 
 builder.Services.AddPaymentsModule(builder.Configuration);
 builder.Services.AddReconciliationModule(builder.Configuration);

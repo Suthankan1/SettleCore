@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using SettleCore.Modules.Payments.Domain;
+using SettleCore.Modules.Payments.Application.Abstractions;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -49,6 +52,41 @@ public sealed class StripeWebhookEndpointTests
         var stored = await finalScope.ServiceProvider.GetRequiredService<PaymentsDbContext>().PaymentProviderEventReceipts.SingleAsync();
         Assert.Equal(receivedAt, stored.ReceivedAt);
         Assert.Equal(1234, stored.AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task EnabledWorkerCompletesCorrelatedSignedReceiptWithIntentAndAudit()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        using var factory = new Factory(postgres.GetConnectionString(), workerEnabled: true);
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        var payment = Payment.Rehydrate(SettleCore.Modules.Payments.Domain.PaymentId.From(StripeWebhookEndpointTests.PaymentId), 12.34m, "SGD", PaymentStatus.Pending);
+        payment.AttachProviderReference(ProviderPaymentReference.Create("stripe", "pi_http"));
+        var transactionId = Guid.NewGuid();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            await db.Database.MigrateAsync();
+            db.Payments.Add(payment);
+            await db.SaveChangesAsync();
+            await scope.ServiceProvider.GetRequiredService<IPaymentLedgerPostingPreparationRepository>().SaveAsync(
+                new PaymentLedgerPostingRequest(StripeWebhookEndpointTests.PaymentId, transactionId, Guid.NewGuid(),
+                    Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SGD", 1234, 34));
+        }
+        Assert.Equal(HttpStatusCode.OK, (await Send(client, Payload())).StatusCode);
+        using var readerScope = factory.Services.CreateScope();
+        var reader = readerScope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var timeout = Stopwatch.StartNew();
+        while (timeout.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            if (await reader.PaymentProviderEventReceipts.AsNoTracking().AnyAsync(x => x.ProcessedAt != null)) break;
+            await Task.Delay(50);
+        }
+        Assert.NotNull((await reader.PaymentProviderEventReceipts.AsNoTracking().SingleAsync()).ProcessedAt);
+        Assert.Equal(PaymentStatus.Succeeded, (await reader.Payments.AsNoTracking().SingleAsync()).Status);
+        Assert.Equal(transactionId, (await reader.PaymentLedgerPostingIntents.AsNoTracking().SingleAsync()).TransactionId);
+        Assert.Single(await reader.PaymentLedgerPostingEvents.AsNoTracking().ToListAsync());
     }
 
     [Theory]
@@ -121,7 +159,7 @@ public sealed class StripeWebhookEndpointTests
         return client.SendAsync(request);
     }
 
-    private sealed class Factory(string? connection = null) : WebApplicationFactory<Program>
+    private sealed class Factory(string? connection = null, bool workerEnabled = false) : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -132,7 +170,11 @@ public sealed class StripeWebhookEndpointTests
                 ["ConnectionStrings:Reconciliation"] = "Host=localhost;Database=test;Username=test;Password=test",
                 ["Payments:Stripe:Enabled"] = "true", ["Payments:Stripe:ApiKey"] = "sk_test_placeholder",
                 ["Payments:Stripe:WebhookSecret"] = Secret, ["Payments:Stripe:SignatureToleranceSeconds"] = "300",
-                ["Payments:Stripe:IsLiveMode"] = "false"
+                ["Payments:Stripe:IsLiveMode"] = "false",
+                ["PaymentProviderEventWorker:Enabled"] = workerEnabled.ToString(),
+                ["PaymentProviderEventWorker:BatchSize"] = "10",
+                ["PaymentProviderEventWorker:PollIntervalMilliseconds"] = "50",
+                ["PaymentProviderEventWorker:RetryDelaySeconds"] = "1"
             }));
             builder.ConfigureServices(services =>
             {
