@@ -1,6 +1,13 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current progress — 2026-10-10 durable provider inbox retry schedule
+## Current progress — 2026-10-10 scoped provider receipt batches
+- Durable retry migration separately committed/pushed `d1e967e16f4ab3bbfc1a168ebc4ece1e3b530c59`.
+- Focused compile RED then real PostgreSQL batch GREEN. Selection bounded by provider/due time; each receipt gets separate scoped transaction. Missing prerequisites and exceptions schedule explicit future retry; processing/scheduling errors logged with event identity, no raw payload/client secret. Invalid/early receipt cannot starve valid following receipt at batchSize1.
+- Infrastructure97 passed, zero failed/skipped; full build zero warnings/errors. Last full solution393 before this batch slice. This commit contains processor/checkpoint; exact SHA in workspace handoff after push.
+- Next smallest RED: validated default-disabled hosted worker requiring Stripe enabled and explicit mode, with signed HTTP receipt automatically producing authoritative success/intent/audit. Provider creation application/HTTP wiring remains afterward; no frontend/live external provider calls.
+- Last visible18% short-window/45% weekly remaining; stop new changes near10%. Tracked checkpoint/workspace handoff provide memory, account-wide memory/UI switching unavailable.
+
+## Earlier slice — 2026-10-10 durable provider inbox retry schedule
 - Manual provider completion guards separately committed/pushed `32095cd018deb52f3e83290dae8ff023ad644387`.
 - Focused compile RED then three PostgreSQL GREEN cases for neutral bounded/provider-scoped due selection and explicit UTC retry scheduling. Exact due boundary included; future receipts excluded; missing/processed scheduling no-op; concurrent acknowledgment/scheduling cannot revive receipt. Atomic completion clears due time with ProcessedAt.
 - Additive migration `20261010023409_AddProviderEventRetrySchedule` adds nullable next_attempt_at and pending due index; retains existing index/receipts. Apply before updated processor/worker. Generated migration adapted to existing static-array analyzer convention.

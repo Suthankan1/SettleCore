@@ -77,6 +77,7 @@ public static class DependencyInjection
         services.AddMetrics();
         services.AddSingleton<PaymentLedgerPostingMetrics>();
         services.AddSingleton<PaymentLedgerPostingBatchProcessor>();
+        services.AddSingleton<PaymentProviderEventBatchProcessor>();
         services.AddScoped<IPaymentSuccessPersistence, EfPaymentSuccessPersistence>();
         services.AddScoped<RecordPaymentSuccessHandler>();
         services.AddScoped<DispatchPaymentLedgerPostingHandler>();
