@@ -1,5 +1,12 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Explicit Ledger account provisioning — 2026-10-10
+- Fresh baseline clean main/remote 23b2fdcce39f74afcd799a591a4de5bc3eda36cc, GitHub CI 38055377306 success; fresh Release436 passed, no failures/skips, build zero warnings/errors.
+- HTTP RED404 then GREEN: POST /ledger/accounts takes explicit AccountId/LedgerId/Currency; validated normalized domain account, identical/concurrent replay200, changed ledger/currency409, invalid identity400. Parameterized INSERT ON CONFLICT preserves original account; no migration/default accounting policy.
+- Focused Ledger HTTP4 passed; CI-equivalent Release437 passed, no failures/skips; build zero warnings/errors. Slice SHA recorded in following checkpoint after commit; CI pending until push.
+- Next: tag-free receipt worker metrics, verified orphan recovery, local operator controls, final acceptance/runbook. No deployment/frontend. Usage visible93% short/26% weekly remaining.
+
+
 ## Closing backend-only continuation — 2026-10-10
 - Latest implementation pushed ee37bfac6d557aca4650efb2af9ddc3c4f23b6c7 (bounded creation retries). No unfinished implementation/tests/migrations. This closing documentation slice adds OPERATIONS.md; exact closing SHA and CI recorded in workspace SETTLECORE_HANDOFF.md after push.
 - Fresh CI-equivalent Release436 passed, zero failed/skipped (Payments unit146, Payments Infrastructure107, host114, Ledger unit34/Infrastructure11, Reconciliation unit20/Infrastructure4); build zero warnings/errors. Guard CI run38055300726 pending at this checkpoint; confirm final remote state before handback. Documentation does not change verified implementation.

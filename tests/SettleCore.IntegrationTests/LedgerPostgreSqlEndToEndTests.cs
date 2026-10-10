@@ -17,6 +17,35 @@ namespace SettleCore.IntegrationTests;
 public sealed class LedgerPostgreSqlEndToEndTests
 {
     [Fact]
+    public async Task ProvisioningPreservesExplicitIdentityAndRejectsConflictingReplay()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        using var factory = new LedgerApiFactory(postgres.GetConnectionString());
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<LedgerDbContext>().Database.MigrateAsync();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        var accountId = Guid.NewGuid();
+        var ledgerId = Guid.NewGuid();
+        using var created = await client.PostAsJsonAsync("/ledger/accounts", new { accountId, ledgerId, currency = "sgd" });
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var retries = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ =>
+            client.PostAsJsonAsync("/ledger/accounts", new { accountId, ledgerId, currency = "SGD" })));
+        foreach (var retry in retries) { Assert.Equal(HttpStatusCode.OK, retry.StatusCode); retry.Dispose(); }
+        using var currencyConflict = await client.PostAsJsonAsync("/ledger/accounts", new { accountId, ledgerId, currency = "USD" });
+        using var identityConflict = await client.PostAsJsonAsync("/ledger/accounts", new { accountId, ledgerId = Guid.NewGuid(), currency = "SGD" });
+        using var invalid = await client.PostAsJsonAsync("/ledger/accounts", new { accountId = Guid.Empty, ledgerId, currency = "SGD" });
+        Assert.Equal(HttpStatusCode.Conflict, currencyConflict.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, identityConflict.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using var verification = factory.Services.CreateScope();
+        var account = Assert.Single(await verification.ServiceProvider.GetRequiredService<LedgerDbContext>().LedgerAccounts.AsNoTracking().ToListAsync());
+        Assert.Equal(accountId, account.Id);
+        Assert.Equal(ledgerId, account.LedgerId);
+        Assert.Equal("SGD", account.Currency);
+    }
+
+    [Fact]
     public async Task PostingRetrySucceedsAndConflictingPayloadReturnsConflict()
     {
         await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();

@@ -1,3 +1,4 @@
+using SettleCore.Modules.Ledger.Application.ProvisionLedgerAccount;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,8 @@ public static class DependencyInjection
             ILedgerRepository,
             EfLedgerRepository>();
 
+        services.AddScoped<ILedgerAccountProvisioning, EfLedgerAccountProvisioning>();
+        services.AddScoped<ProvisionLedgerAccountHandler>();
         services.AddScoped<PostLedgerTransactionHandler>();
         services.AddScoped<PostPaymentLedgerTransactionHandler>();
         services.AddScoped<GetLedgerTransactionByIdHandler>();

@@ -1,3 +1,4 @@
+using SettleCore.Modules.Ledger.Application.ProvisionLedgerAccount;
 using Microsoft.AspNetCore.Mvc;
 using SettleCore.Modules.Ledger.Application.GetLedgerTransactionById;
 using SettleCore.Modules.Ledger.Application.PostLedgerTransaction;
@@ -10,6 +11,22 @@ public static class LedgerEndpoints
     public static IEndpointRouteBuilder MapLedgerEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapPost("/ledger/accounts", async Task<IResult> (
+            ProvisionLedgerAccountCommand request, ProvisionLedgerAccountHandler handler, CancellationToken cancellationToken) =>
+        {
+            try { return Results.Ok(await handler.HandleAsync(request, cancellationToken)); }
+            catch (LedgerAccountConflictException exception) { return Results.Conflict(new { error = exception.Message }); }
+            catch (ArgumentException exception)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                { [exception.ParamName ?? "account"] = [exception.Message] });
+            }
+        })
+        .WithName("ProvisionLedgerAccount")
+        .Produces<ProvisionLedgerAccountResult>()
+        .ProducesValidationProblem()
+        .Produces(StatusCodes.Status409Conflict);
+
         endpoints.MapPost(
                 "/ledger/transactions",
                 async Task<IResult> (
