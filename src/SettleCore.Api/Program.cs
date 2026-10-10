@@ -1,4 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using SettleCore.Api.Health;
+using SettleCore.Modules.Payments.Infrastructure.Persistence;
+using SettleCore.Modules.Ledger.Infrastructure.Persistence;
+using SettleCore.Modules.Reconciliation.Infrastructure.Persistence;
 using Microsoft.Extensions.Options;
 using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using SettleCore.Api.Endpoints;
@@ -10,7 +14,10 @@ using SettleCore.Modules.Reconciliation.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<ModuleDatabaseHealthCheck<PaymentsDbContext>>("payments-database", tags: ["ready"], timeout: TimeSpan.FromSeconds(5))
+    .AddCheck<ModuleDatabaseHealthCheck<LedgerDbContext>>("ledger-database", tags: ["ready"], timeout: TimeSpan.FromSeconds(5))
+    .AddCheck<ModuleDatabaseHealthCheck<ReconciliationDbContext>>("reconciliation-database", tags: ["ready"], timeout: TimeSpan.FromSeconds(5));
 builder.Services.AddPaymentLedgerPostingWorker(builder.Configuration);
 
 builder.Services.AddOptions<PaymentProviderEventWorkerOptions>()

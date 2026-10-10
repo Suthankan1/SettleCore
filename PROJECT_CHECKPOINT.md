@@ -1,5 +1,11 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Truthful module readiness — 2026-10-10
+- Posting-worker CI repair68187d190f6162e92224acea530309fcf30b58fe; GitHub run38045974781 green before resuming feature edits. User clarified backend-only continuation.
+- Real HTTP RED showed readiness200 for unavailable/unmigrated databases. GREEN registers scoped, timeout-bounded checks for Payments/Ledger/Reconciliation connectivity and pending migrations; generic failure messages, no exception/connection data in health result. Liveness excludes dependencies.
+- PostgreSQL tests verify503 until all three schemas applied,200 after migrations,503 after ledger stopped and liveness200 throughout. Focused2 passed; full Release422 passed, zero failed/skipped; build zero warnings/errors.
+- Next: neutral provider lookup and Stripe retrieval verifying identity/reference/amount/currency/mode, response-only secret with no-store; then operations documentation. No frontend per user.
+
 ## Posting worker startup CI repair — 2026-10-10
 - CI forbf6d77c exposed same framework cleanup mismatch in existing posting-worker PollIntervalMilliseconds invalid-setting host assertion. Latest533e16d CI happened to pass; fragility remains reproducible in CI logs.
 - Extracted unchanged production posting-worker options/host registration into API extension. Host behavioral assertion accepts startup failure;3 exact OptionsValidationException/type/message cases resolve production options registration deterministically.
