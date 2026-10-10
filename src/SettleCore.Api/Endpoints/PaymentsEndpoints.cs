@@ -1,3 +1,4 @@
+using SettleCore.Modules.Payments.Application.RecoverProviderPayment;
 using Microsoft.Extensions.Options;
 using SettleCore.Modules.Payments.Application.GetProviderPayment;
 using SettleCore.Modules.Payments.Application.CreateProviderPayment;
@@ -229,16 +230,15 @@ public static class PaymentsEndpoints
                     Guid paymentId,
                     AttachProviderReferenceRequest request,
                     AttachProviderReferenceHandler handler,
+                    IOptions<StripePaymentOptions> options, IServiceProvider services,
                     CancellationToken cancellationToken) =>
                 {
                     try
                     {
-                        var result = await handler.HandleAsync(
-                            new AttachProviderReferenceCommand(
-                                paymentId,
-                                request.Provider,
-                                request.Reference),
-                            cancellationToken);
+                        var command = new AttachProviderReferenceCommand(paymentId, request.Provider, request.Reference);
+                        var result = options.Value.Enabled
+                            ? await services.GetRequiredService<RecoverProviderPaymentHandler>().HandleAsync(command, cancellationToken)
+                            : await handler.HandleAsync(command, cancellationToken);
 
                         return result is null
                             ? Results.NotFound()
@@ -266,6 +266,7 @@ public static class PaymentsEndpoints
                                 error = exception.Message
                             });
                     }
+                    catch (InvalidOperationException) { return Results.Conflict(); }
                 })
             .WithName("AttachProviderReference")
             .Produces<AttachProviderReferenceResult>(

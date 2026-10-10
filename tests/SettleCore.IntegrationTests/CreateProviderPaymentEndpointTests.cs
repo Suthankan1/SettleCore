@@ -184,6 +184,48 @@ public sealed class CreateProviderPaymentEndpointTests
         Assert.Contains(transaction.Entries, x => x.AccountId == input.PlatformRevenueAccountId && x.AmountMinorUnits == 34);
     }
 
+    [Fact]
+    public async Task ExpiredOrphanRecoveryVerifiesOriginalIntentWithoutCreatingOrCompletingPayment()
+    {
+        await using var postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await postgres.StartAsync();
+        var transport = new Transport();
+        using var http = new HttpClient(transport);
+        using var factory = new Factory(postgres.GetConnectionString(), http);
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>().Database.MigrateAsync();
+        using var created = await client.PostAsJsonAsync("/payments", new { amount = 12.34m, currency = "SGD" });
+        var payment = Assert.IsType<CreatePaymentResult>(await created.Content.ReadFromJsonAsync<CreatePaymentResult>());
+        transport.LookupPaymentId = payment.PaymentId.ToString("D");
+        var firstAttempt = DateTimeOffset.UtcNow.AddDays(-2);
+        using (var seed = factory.Services.CreateScope())
+            await new EfPaymentProviderCreationAttempts(seed.ServiceProvider.GetRequiredService<PaymentsDbContext>(), new Clock(firstAttempt))
+                .GetOrRecordAsync(PaymentId.From(payment.PaymentId));
+        var path = $"/payments/{payment.PaymentId}/provider-reference";
+        transport.MismatchLookup = true;
+        using var mismatch = await client.PostAsJsonAsync(path, new { provider = "stripe", reference = "pi_http_create" });
+        Assert.Equal(HttpStatusCode.Conflict, mismatch.StatusCode);
+        using (var verify = factory.Services.CreateScope())
+            Assert.Null((await verify.ServiceProvider.GetRequiredService<PaymentsDbContext>().Payments.AsNoTracking().SingleAsync()).ProviderReference);
+        transport.MismatchLookup = false;
+        using var recovered = await client.PostAsJsonAsync(path, new { provider = "stripe", reference = "pi_http_create" });
+        Assert.Equal(HttpStatusCode.OK, recovered.StatusCode);
+        Assert.DoesNotContain("test-client-secret", await recovered.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        using var replay = await client.PostAsJsonAsync(path, new { provider = "stripe", reference = "pi_http_create" });
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(0, transport.Calls);
+        Assert.Equal(3, transport.LookupCalls);
+        using var final = factory.Services.CreateScope();
+        var db = final.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var stored = await db.Payments.AsNoTracking().SingleAsync();
+        Assert.Equal("pi_http_create", stored.ProviderReference!.Value.Reference);
+        Assert.Equal(PaymentStatus.Pending, stored.Status);
+        Assert.Empty(await db.PaymentLedgerPostingIntents.ToListAsync());
+        Assert.Empty(await db.PaymentLedgerPostingEvents.ToListAsync());
+        Assert.Equal(firstAttempt.ToUnixTimeSeconds(), (await db.PaymentProviderCreationAttempts.SingleAsync()).StartedAt.ToUnixTimeSeconds());
+    }
+
     private sealed class Factory(string connection, HttpClient http, string? ledgerConnection = null) : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -229,6 +271,7 @@ public sealed class CreateProviderPaymentEndpointTests
         public int Calls { get; private set; }
         public int LookupCalls { get; private set; }
         public bool MismatchLookup { get; set; }
+        public string? LookupPaymentId { get; set; }
         public string? IdempotencyKey { get; private set; }
         public Dictionary<string, string> Fields { get; private set; } = [];
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -253,7 +296,7 @@ public sealed class CreateProviderPaymentEndpointTests
                 {
                     id = "pi_http_create", @object = "payment_intent", amount = MismatchLookup ? 1235 : 1234,
                     currency = "sgd", status = "succeeded", client_secret = "test-client-secret", livemode = false,
-                    metadata = new { settlecore_payment_id = Fields["metadata[settlecore_payment_id]"] }
+                    metadata = new { settlecore_payment_id = LookupPaymentId ?? Fields["metadata[settlecore_payment_id]"] }
                 }), Encoding.UTF8, "application/json")
             };
         }

@@ -1,5 +1,12 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Verified orphan reference recovery — 2026-10-10
+- Metrics committed/pushed16c6b2f8aa6a8ab0855b32ff21663044a19628f2 (GitHub38060340876 running); provisioning70715939cd9b2be6fbcd7acc9d765e16a62b9c38 CI38060173768 success.
+- HTTP RED accepted mismatched provider reference, then GREEN: when Stripe enabled, existing POST provider-reference uses neutral recovery handler plus reader correlation before durable attach. Supplied original reference retrieved only; identity/amount/currency/mode/reference verification remains Infrastructure-owned. Linked conflicting reference rejected; unique concurrent persistence reused. Disabled manual path retained for local demonstrations.
+- Real SDK/fake transport/PostgreSQL proves expired orphan mismatch409/no attach, valid/replay200, zero create calls, unchanged first-attempt timestamp, Pending/no posting or audit, no response client secret. Creation/webhook acceptance module4 passed. Full Release440 passed, zero failures/skips; build zero warnings/errors. No migration.
+- Next: default-protected local operator API; acceptance through public provisioning API; reproducible local runbook/architecture/optional real TEST-mode steps. Usage80% short/24% weekly remaining.
+
+
 ## Provider receipt worker metrics — 2026-10-10
 - Ledger provisioning committed/pushed70715939cd9b2be6fbcd7acc9d765e16a62b9c38; GitHub38060173768 running tests at this checkpoint.
 - Behavioral RED missing attempts then GREEN tag-free counters for attempts/completed/deferred/failures/retry_scheduling_failures under SettleCore.Payments. No provider/event/payment identities or secret tags. Durable batch test plus retry-write failure/cancellation cases validate outcomes; cancellation is not failure.

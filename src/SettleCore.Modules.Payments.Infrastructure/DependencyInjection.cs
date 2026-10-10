@@ -1,3 +1,4 @@
+using SettleCore.Modules.Payments.Application.RecoverProviderPayment;
 using Microsoft.Extensions.Options;
 using SettleCore.Modules.Payments.Application.GetProviderPayment;
 using SettleCore.Modules.Payments.Application.CreateProviderPayment;
@@ -92,6 +93,7 @@ public static class DependencyInjection
         services.AddSingleton(new PaymentProviderCreationRetryPolicy(TimeSpan.FromHours(23)));
         services.AddScoped<CreateProviderPaymentHandler>();
         services.AddScoped<GetProviderPaymentHandler>();
+        services.AddScoped<RecoverProviderPaymentHandler>();
         services.AddScoped<PreparePaymentLedgerPostingHandler>();
         services.AddScoped<GetPaymentByIdHandler>();
         services.AddScoped<GetPaymentLedgerPostingHandler>();
