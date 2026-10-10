@@ -1,3 +1,5 @@
+using SettleCore.Modules.Reconciliation.Infrastructure.Persistence;
+using SettleCore.Api.Security;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using SettleCore.Modules.Ledger.Domain;
@@ -104,23 +106,33 @@ public sealed class CreateProviderPaymentEndpointTests
     {
         await using var payments = new PostgreSqlBuilder("postgres:18-alpine").Build();
         await using var ledger = new PostgreSqlBuilder("postgres:18-alpine").Build();
-        await payments.StartAsync();
-        await ledger.StartAsync();
+        await using var reconciliation = new PostgreSqlBuilder("postgres:18-alpine").Build();
+        await Task.WhenAll(payments.StartAsync(), ledger.StartAsync(), reconciliation.StartAsync());
         using var transport = new Transport();
         using var http = new HttpClient(transport);
-        using var factory = new Factory(payments.GetConnectionString(), http, ledger.GetConnectionString());
+        using var factory = new Factory(payments.GetConnectionString(), http, ledger.GetConnectionString(), reconciliation.GetConnectionString());
         using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        client.DefaultRequestHeaders.Add(LocalApiAccess.Header, Factory.TestOperatorKey);
+        using var publicClient = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        Assert.Equal(HttpStatusCode.Unauthorized, (await publicClient.GetAsync($"/payments/{Guid.NewGuid()}")).StatusCode);
         var input = new PaymentLedgerPostingInput(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 34);
         using (var scope = factory.Services.CreateScope())
         {
             await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>().Database.MigrateAsync();
             var ledgerDb = scope.ServiceProvider.GetRequiredService<LedgerDbContext>();
             await ledgerDb.Database.MigrateAsync();
-            ledgerDb.LedgerAccounts.AddRange(
-                LedgerAccount.Open(input.ProcessorReceivableAccountId, input.LedgerId, "SGD"),
-                LedgerAccount.Open(input.MerchantPayableAccountId, input.LedgerId, "SGD"),
-                LedgerAccount.Open(input.PlatformRevenueAccountId, input.LedgerId, "SGD"));
-            await ledgerDb.SaveChangesAsync();
+            var reconciliationDb = scope.ServiceProvider.GetRequiredService<ReconciliationDbContext>();
+            await reconciliationDb.Database.MigrateAsync();
+            Assert.False(scope.ServiceProvider.GetRequiredService<PaymentsDbContext>().Database.HasPendingModelChanges());
+            Assert.False(ledgerDb.Database.HasPendingModelChanges());
+            Assert.False(reconciliationDb.Database.HasPendingModelChanges());
+        }
+        Assert.Equal(HttpStatusCode.OK, (await publicClient.GetAsync("/health/ready")).StatusCode);
+        foreach (var accountId in new[] { input.ProcessorReceivableAccountId, input.MerchantPayableAccountId, input.PlatformRevenueAccountId })
+        {
+            var provisions = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ =>
+                client.PostAsJsonAsync("/ledger/accounts", new { accountId, ledgerId = input.LedgerId, currency = "SGD" })));
+            foreach (var provision in provisions) { Assert.Equal(HttpStatusCode.OK, provision.StatusCode); provision.Dispose(); }
         }
         var response = await client.PostAsJsonAsync("/payments", new { amount = 12.34m, currency = "SGD" });
         var payment = Assert.IsType<CreatePaymentResult>(await response.Content.ReadFromJsonAsync<CreatePaymentResult>());
@@ -150,7 +162,7 @@ public sealed class CreateProviderPaymentEndpointTests
             using var request = new HttpRequestMessage(HttpMethod.Post, "/payments/webhooks/stripe")
             { Content = new StringContent(payload, Encoding.UTF8, "application/json") };
             request.Headers.Add("Stripe-Signature", $"t={timestamp},v1={Convert.ToHexString(hash).ToLowerInvariant()}");
-            using var result = await client.SendAsync(request);
+            using var result = await publicClient.SendAsync(request);
             return result.StatusCode;
         }
         Assert.Equal(HttpStatusCode.BadRequest, await SendWebhook(valid: false));
@@ -182,6 +194,18 @@ public sealed class CreateProviderPaymentEndpointTests
         Assert.Equal(1234, transaction.Entries.Where(x => x.Direction == LedgerDirection.Debit).Sum(x => x.AmountMinorUnits));
         Assert.Equal(1234, transaction.Entries.Where(x => x.Direction == LedgerDirection.Credit).Sum(x => x.AmountMinorUnits));
         Assert.Contains(transaction.Entries, x => x.AccountId == input.PlatformRevenueAccountId && x.AmountMinorUnits == 34);
+        Assert.Equal(3, await finalScope.ServiceProvider.GetRequiredService<LedgerDbContext>().LedgerAccounts.CountAsync());
+        using var paymentRead = await client.GetAsync($"/payments/{payment.PaymentId}");
+        Assert.Equal(HttpStatusCode.OK, paymentRead.StatusCode);
+        using var paymentJson = JsonDocument.Parse(await paymentRead.Content.ReadAsStringAsync());
+        Assert.Equal("Succeeded", paymentJson.RootElement.GetProperty("status").GetString());
+        using var postingRead = await client.GetAsync($"/payments/{payment.PaymentId}/ledger-posting");
+        Assert.Equal(HttpStatusCode.OK, postingRead.StatusCode);
+        using var transactionRead = await client.GetAsync($"/ledger/transactions/{input.TransactionId}");
+        Assert.Equal(HttpStatusCode.OK, transactionRead.StatusCode);
+        using var reconciliationResponse = await client.PostAsJsonAsync("/reconciliations", new
+        { expectedAmount = 12.34m, expectedCurrency = "SGD", actualAmount = 12.34m, actualCurrency = "SGD" });
+        Assert.Equal(HttpStatusCode.Created, reconciliationResponse.StatusCode);
     }
 
     [Fact]
@@ -226,12 +250,15 @@ public sealed class CreateProviderPaymentEndpointTests
         Assert.Equal(firstAttempt.ToUnixTimeSeconds(), (await db.PaymentProviderCreationAttempts.SingleAsync()).StartedAt.ToUnixTimeSeconds());
     }
 
-    private sealed class Factory(string connection, HttpClient http, string? ledgerConnection = null) : WebApplicationFactory<Program>
+    private sealed class Factory(string connection, HttpClient http, string? ledgerConnection = null, string? reconciliationConnection = null) : WebApplicationFactory<Program>
     {
+        public const string TestOperatorKey = "acceptance-only-key-with-at-least-32-characters";
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["LocalApiAccess:Enabled"] = (ledgerConnection is not null).ToString(),
+                ["LocalApiAccess:OperatorKey"] = TestOperatorKey,
                 ["Payments:Stripe:Enabled"] = "true", ["Payments:Stripe:ApiKey"] = "sk_test_placeholder",
                 ["Payments:Stripe:WebhookSecret"] = "whsec_test_placeholder", ["Payments:Stripe:SignatureToleranceSeconds"] = "300",
                 ["Payments:Stripe:IsLiveMode"] = "false",
@@ -254,6 +281,13 @@ public sealed class CreateProviderPaymentEndpointTests
                     services.RemoveAll<DbContextOptions<LedgerDbContext>>();
                     services.RemoveAll<LedgerDbContext>();
                     services.AddDbContext<LedgerDbContext>(options => options.UseNpgsql(ledgerConnection));
+                }
+                if (reconciliationConnection is not null)
+                {
+                    services.RemoveAll<IDbContextOptionsConfiguration<ReconciliationDbContext>>();
+                    services.RemoveAll<DbContextOptions<ReconciliationDbContext>>();
+                    services.RemoveAll<ReconciliationDbContext>();
+                    services.AddDbContext<ReconciliationDbContext>(options => options.UseNpgsql(reconciliationConnection));
                 }
                 services.RemoveAll<StripeClient>();
                 services.AddSingleton(new StripeClient("sk_test_placeholder", httpClient: new SystemNetHttpClient(http, maxNetworkRetries: 0)));

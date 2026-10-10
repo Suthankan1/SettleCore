@@ -1,5 +1,12 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Authenticated fully local acceptance — 2026-10-10
+- Local access committed/pushed39f28516397f532f6da67d0d06d31a44dc60d660, GitHub38060727901 running at checkpoint. Recovery2cb09b80f6eea76c7d45d904b86ad950c70e9422 CI38060538501 success.
+- Existing complete flow now enables operator auth, uses three separately migrated PostgreSQL databases, checks model snapshots/readiness200, rejects unauthenticated reads, provisions exact three accounts via concurrent HTTP replays, uses SDK fake transport creation and separately signed public webhook, automatic receipt/posting workers, one exact balanced three-entry transaction, authenticated payment/posting/transaction reads and local reconciliation. No live Stripe/network transport request.
+- Focused acceptance1 passed; full restore/Release build/test454 passed, zero failed/skipped, zero warnings/errors. Real Kestrel HTTPS smoke with ephemeral unlogged key/certificate verified live200, unauthenticated write401 and authenticated validation400; no provider calls. Temporary host stopped.
+- Next: final README/architecture/local demo/optional real TEST-mode docs and exact-head CI/clean remote acceptance checklist. Usage68% short/22% weekly remaining.
+
+
 ## Default-on local operator access controls — 2026-10-10
 - Recovery committed/pushed2cb09b80f6eea76c7d45d904b86ad950c70e9422; GitHub38060538501 running. Metrics16c6b2f8aa6a8ab0855b32ff21663044a19628f2 CI38060340876 success.
 - Behavioral RED unauthenticated sensitive writes reached validation; GREEN authenticated route group covers all Payments/Ledger/Reconciliation reads and writes. Dedicated local operator key header, HTTPS required, fixed-time hashed comparison, duplicate headers rejected. Default enabled; missing/short key fails startup options; disabling permitted only explicitly in Development. Health and separately signed webhook ingress remain public.
