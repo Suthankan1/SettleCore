@@ -1,6 +1,14 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current progress — 2026-10-10 durable posting preparation
+## Current progress — 2026-10-10 explicit preparation API
+- Preparation repository/migration separately committed/pushed `04fcf8f20533420f6e651d72501363e1c4ffa8b5`.
+- Behavioral HTTP RED404 then GREEN for POST /payments/{id}/ledger-posting/preparation. Neutral application handler validates explicit transaction/ledger/account IDs and fee through existing factory using stored amount/currency. Returns validated complete request, persists immutable preparation only; no status change/intent/audit write.
+- Real PostgreSQL HTTP case verifies invalid input400 without writes, missing404, matching replay200, conflicting inputs409 and Pending status. Host module95 passed, zero failed/skipped; full solution build zero warnings/errors. Last full solution368 before this endpoint slice; no unverified aggregate claimed.
+- This commit contains endpoint/use case/checkpoint; exact SHA in workspace handoff after push. No unfinished source changes at commit.
+- Next: neutral event-processing contract and PostgreSQL transaction correlating stored receipt/payment/preparation before atomic payment success + intent + audit + receipt ProcessedAt. Missing prerequisites remain pending; concurrency/replay/rollback must be tested before worker wiring.
+- Last quota65% short-window/53% weekly remaining; tracked checkpoint/workspace handoff continuity only, no account-wide memory or automatic UI switch.
+
+## Earlier slice — 2026-10-10 durable posting preparation
 - Neutral correlation separately committed/pushed `de7cbcfd461650c8691996eec820badbf924ada1`.
 - Focused compile RED then four PostgreSQL GREEN cases, plus existing-payment FK check. Neutral repository stores the immutable complete explicit posting payload in separate preparation table. Identical/concurrent replay succeeds, different transaction/routing/amount/fee/currency preserves one winner and conflicts. No payment status, dispatch intent or audit event changes.
 - Additive migration `20261010021835_AddPaymentLedgerPostingPreparations` adds preparation table keyed by payment with restrictive FK; apply before using preparation. Infrastructure-only persistence entity; neutral application payload/contract.

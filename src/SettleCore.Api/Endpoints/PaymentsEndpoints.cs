@@ -1,4 +1,6 @@
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
+using SettleCore.Modules.Payments.Application.PreparePaymentLedgerPosting;
+using SettleCore.Modules.Payments.Application.Abstractions;
 using SettleCore.Modules.Payments.Application.CreatePayment;
 using SettleCore.Modules.Payments.Application.GetPaymentLedgerPosting;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
@@ -265,6 +267,33 @@ public static class PaymentsEndpoints
                 StatusCodes.Status400BadRequest)
             .Produces(
                 StatusCodes.Status409Conflict);
+
+        endpoints.MapPost("/payments/{paymentId:guid}/ledger-posting/preparation", async Task<IResult> (
+            Guid paymentId, PaymentLedgerPostingInput input, PreparePaymentLedgerPostingHandler handler,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var result = await handler.HandleAsync(new PreparePaymentLedgerPostingCommand(paymentId, input), cancellationToken);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (ArgumentException exception)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    [exception.ParamName ?? "postingInput"] = [exception.Message]
+                });
+            }
+            catch (PaymentLedgerPostingIntentConflictException)
+            {
+                return Results.Conflict();
+            }
+        })
+        .WithName("PreparePaymentLedgerPosting")
+        .Produces<PaymentLedgerPostingRequest>(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict);
 
         return endpoints;
     }

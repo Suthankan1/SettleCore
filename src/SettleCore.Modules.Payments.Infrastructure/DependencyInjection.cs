@@ -8,6 +8,7 @@ using SettleCore.Modules.Payments.Infrastructure.Dispatch;
 using SettleCore.Modules.Payments.Application.Abstractions;
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.CreatePayment;
+using SettleCore.Modules.Payments.Application.PreparePaymentLedgerPosting;
 using SettleCore.Modules.Payments.Application.DispatchPaymentLedgerPosting;
 using SettleCore.Modules.Payments.Application.GetPaymentLedgerPosting;
 using SettleCore.Modules.Payments.Application.GetPaymentById;
@@ -79,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<DispatchPaymentLedgerPostingHandler>();
 
         services.AddScoped<CreatePaymentHandler>();
+        services.AddScoped<PreparePaymentLedgerPostingHandler>();
         services.AddScoped<GetPaymentByIdHandler>();
         services.AddScoped<GetPaymentLedgerPostingHandler>();
         services.AddScoped<MarkPaymentSucceededHandler>();
