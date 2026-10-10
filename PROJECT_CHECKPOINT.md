@@ -1,5 +1,12 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Neutral provider creation use case — 2026-10-10
+- Hosted worker pushed5360960; GitHub run38041762088 green.
+- Focused compile RED then10 GREEN cases for neutral CreateProviderPaymentHandler. Stored pending/unlinked payment and matching persisted explicit preparation required before provider call; amount/currency/idempotency come from stored payment. Creation observations, including Succeeded, never complete local payment. Reference persisted through existing concurrency-safe port before returning client secret; provider/persistence failures do not report success. Existing linked/completed payments rejected before outbound creation.
+- Payments unit142 passed; full Release build zero warnings/errors. Latest full aggregate406 before these10 tests; no unverified aggregate claimed. No DI/HTTP wiring yet, migration, SDK/core dependency, frontend or fee defaults.
+- Next: opt-in HTTP provider creation composition with fake transport-backed PostgreSQL tests for preparation prerequisite, response secret, reference persistence and unchanged Pending status; disabled endpoint must not resolve provider.
+- Quota last79% short-window/39% weekly remaining.
+
 ## Hosted provider receipt worker — 2026-10-10
 - CI repair separately pushed as 1ad7d4b878fcc51b2800d3547c47d9d5c36be6b8; GitHub run38041390161 green before feature edits.
 - Focused compile RED for missing options, then PostgreSQL behavioral RED: signed durable receipt stayed unprocessed. Minimal GREEN adds default-disabled hosted worker invoking existing scoped retrying processor; explicit enabled Stripe/test-live mode and positive batch/poll/retry settings required. Shutdown leaves durable receipts; batch failures retry on next poll.
