@@ -7,7 +7,8 @@ public sealed class CreateProviderPaymentHandler(
     IPaymentRepository payments,
     IPaymentLedgerPostingPreparationRepository preparations,
     IPaymentProvider provider,
-    IPaymentProviderReferencePersistence references)
+    IPaymentProviderReferencePersistence references,
+    IPaymentProviderCreationAttempts attempts, TimeProvider clock, PaymentProviderCreationRetryPolicy retryPolicy)
 {
     public async Task<CreateProviderPaymentResult?> HandleAsync(Guid paymentId,
         CancellationToken cancellationToken = default)
@@ -22,6 +23,11 @@ public sealed class CreateProviderPaymentHandler(
         if (preparation is null || preparation.PaymentId != paymentId ||
             preparation.GrossAmountMinorUnits != amount || preparation.Currency != payment.Currency)
             throw new InvalidOperationException("Provider creation requires matching persisted posting preparation.");
+
+        var firstAttempt = await attempts.GetOrRecordAsync(identity, cancellationToken);
+        var age = clock.GetUtcNow() - firstAttempt;
+        if (age < TimeSpan.Zero || age >= retryPolicy.MaximumAge)
+            throw new InvalidOperationException("Provider creation retry window expired; reconcile the original provider attempt before proceeding.");
 
         var result = await provider.CreatePaymentAsync(
             new CreateProviderPaymentRequest(identity, amount, payment.Currency), cancellationToken);

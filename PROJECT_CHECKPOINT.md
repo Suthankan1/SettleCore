@@ -1,5 +1,11 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Bounded creation retry safety — 2026-10-10
+- Attempt store0e7588c CI green; HTTP recoveryf375b0d CI green. Three behavioral RED cases proved expired/future attempts still called provider. GREEN durably records first attempt before outbound creation and checks injected neutral retry policy/clock; Stripe composition selects conservative23h window, below documented24h minimum key retention. At boundary, older or future timestamp409 before outbound call; inside-window retry retains payment-derived key. Never reset timestamp or invent replacement payment.
+- Focused creation unit14 and HTTP3 passed; PostgreSQL HTTP test proves stale attempt409/no additional SDK creation. Full CI-equivalent Release restore/build/test436 passed, zero failed/skipped; build zero warnings/errors.
+- Apply20261010105446_AddPaymentProviderCreationAttempts before updated creation path. Stale unlinked attempts require reconcile original provider intent and attach verified matching reference, then GET lookup; no blind replay or deletion of attempt row. Lookup still leaves authoritative completion to signed correlated evidence.
+- Next: operation runbook, final exact-head CI confirmation and clean handback near quota. No new features planned; backend only per user.
+
 ## Durable creation attempt timestamps — 2026-10-10
 - HTTP recovery separately pushedf375b0d; lookup16fff80 CI green. Compile RED then3 PostgreSQL GREEN cases for immutable per-payment first creation attempt. INSERT ON CONFLICT preserves first timestamp across retry/restart/concurrent calls; FK requires existing payment; no payment/intent side effects or sensitive payload.
 - Additive migration20261010105446_AddPaymentProviderCreationAttempts and snapshot reviewed: new table with payment identity/start timestamp only, restrictive FK; no existing data edits. Infrastructure107 passed; full Release build zero warnings/errors. Latest full429 before3 added cases.

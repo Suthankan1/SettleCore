@@ -17,6 +17,7 @@ using SettleCore.Modules.Payments.Application.CreatePayment;
 using SettleCore.Modules.Payments.Application.MarkPaymentSucceeded;
 using SettleCore.Modules.Payments.Domain;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
+using SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
 using Testcontainers.PostgreSql;
 using Stripe;
 
@@ -87,6 +88,15 @@ public sealed class CreateProviderPaymentEndpointTests
         Assert.Single(await db.PaymentLedgerPostingPreparations.ToListAsync());
         Assert.Empty(await db.PaymentLedgerPostingIntents.ToListAsync());
         Assert.Empty(await db.PaymentLedgerPostingEvents.ToListAsync());
+        Assert.Single(await db.PaymentProviderCreationAttempts.ToListAsync());
+        var expiredResponse = await client.PostAsJsonAsync("/payments", new { amount = 12.34m, currency = "SGD" });
+        var expired = Assert.IsType<CreatePaymentResult>(await expiredResponse.Content.ReadFromJsonAsync<CreatePaymentResult>());
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync($"/payments/{expired.PaymentId}/ledger-posting/preparation",
+            input with { TransactionId = Guid.NewGuid() })).StatusCode);
+        await new EfPaymentProviderCreationAttempts(db, new Clock(DateTimeOffset.UtcNow.AddDays(-2)))
+            .GetOrRecordAsync(PaymentId.From(expired.PaymentId));
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync($"/payments/{expired.PaymentId}/provider-payment", null)).StatusCode);
+        Assert.Equal(1, transport.Calls);
     }
 
     [Fact]
@@ -207,6 +217,11 @@ public sealed class CreateProviderPaymentEndpointTests
                 services.AddSingleton(new StripeClient("sk_test_placeholder", httpClient: new SystemNetHttpClient(http, maxNetworkRetries: 0)));
             });
         }
+    }
+
+    private sealed class Clock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 
     private sealed class Transport : HttpMessageHandler

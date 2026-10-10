@@ -86,6 +86,9 @@ public static class DependencyInjection
         services.AddScoped<DispatchPaymentLedgerPostingHandler>();
 
         services.AddScoped<CreatePaymentHandler>();
+        services.AddScoped<IPaymentProviderCreationAttempts, EfPaymentProviderCreationAttempts>();
+        // Stripe may prune v1 idempotency keys after 24h; stop automatic creation retries earlier.
+        services.AddSingleton(new PaymentProviderCreationRetryPolicy(TimeSpan.FromHours(23)));
         services.AddScoped<CreateProviderPaymentHandler>();
         services.AddScoped<GetProviderPaymentHandler>();
         services.AddScoped<PreparePaymentLedgerPostingHandler>();

@@ -79,13 +79,49 @@ public sealed class CreateProviderPaymentHandlerTests
         Assert.Equal(PaymentStatus.Pending, state.Payment!.Status);
     }
 
+    [Theory]
+    [InlineData(23)]
+    [InlineData(24)]
+    [InlineData(-1)]
+    public async Task ExpiredOrFutureAttemptPreventsProviderCall(int ageHours)
+    {
+        var state = new State();
+        state.FirstAttemptAt = state.Now.AddHours(-ageHours);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => state.Handler.HandleAsync(state.Payment!.Id.Value));
+        Assert.Null(state.Request);
+        Assert.Null(state.Attached);
+    }
+
+    [Fact]
+    public async Task RetryInsideWindowMayReuseStableIdentity()
+    {
+        var state = new State();
+        state.FirstAttemptAt = state.Now.AddHours(-22);
+        Assert.Same(state.Result, await state.Handler.HandleAsync(state.Payment!.Id.Value));
+        Assert.Equal(1, state.RecordedAttempts);
+    }
+
+    private sealed class Clock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
     private sealed class State : IPaymentRepository, IPaymentLedgerPostingPreparationRepository,
-        IPaymentProvider, IPaymentProviderReferencePersistence
+        IPaymentProvider, IPaymentProviderReferencePersistence, IPaymentProviderCreationAttempts
     {
         public State()
         {
+            FirstAttemptAt = Now;
             Preparation = new(Payment!.Id.Value, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
                 Guid.NewGuid(), Guid.NewGuid(), "SGD", 1234, 34);
+        }
+        public DateTimeOffset Now { get; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset FirstAttemptAt { get; set; }
+        public int RecordedAttempts { get; private set; }
+        public Task<DateTimeOffset> GetOrRecordAsync(PaymentId id, CancellationToken cancellationToken = default)
+        {
+            RecordedAttempts++;
+            return Task.FromResult(FirstAttemptAt);
         }
         public Payment? Payment { get; set; } = Payment.Create(12.34m, "SGD");
         public PaymentLedgerPostingRequest? Preparation { get; set; }
@@ -96,11 +132,12 @@ public sealed class CreateProviderPaymentHandlerTests
         public CancellationToken Token { get; private set; }
         public bool FailProvider { get; set; }
         public bool AttachSucceeds { get; set; } = true;
-        public CreateProviderPaymentHandler Handler => new(this, this, this, this);
+        public CreateProviderPaymentHandler Handler => new(this, this, this, this, this, new Clock(Now), new(TimeSpan.FromHours(23)));
         public Task<Payment?> GetByIdAsync(PaymentId id, CancellationToken cancellationToken = default) => Task.FromResult(Payment);
         public Task<PaymentLedgerPostingRequest?> GetByPaymentIdAsync(PaymentId id, CancellationToken cancellationToken = default) => Task.FromResult(Preparation);
         public Task<CreateProviderPaymentResult> CreatePaymentAsync(CreateProviderPaymentRequest request, CancellationToken cancellationToken = default)
         {
+            Assert.True(RecordedAttempts > 0);
             Request = request;
             Token = cancellationToken;
             if (FailProvider) throw new InvalidOperationException("Provider unavailable.");
