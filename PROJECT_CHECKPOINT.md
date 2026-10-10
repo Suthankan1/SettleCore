@@ -1,5 +1,10 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Provider creation HTTP composition — 2026-10-10
+- Neutral use case separately pushed09276ad. Focused HTTP behavioral RED (missing route) then2 GREEN tests with PostgreSQL and actual Stripe SDK over isolated fake transport; no live provider request.
+- POST /payments/{id}/provider-payment checks enabled Stripe before resolving provider; disabled/missing payment404, missing preparation/already-linked409. SDK receives stored amount/currency/identity key and metadata; returned reference persisted before200/client secret. Creation reports Succeeded in test while local payment remains Pending and no intent/audit is created. Linked replay rejected before another provider call.
+- Full solution418 passed, zero failed/skipped; Release build zero warnings/errors. No migration or fee/account defaults; secrets remain response-only. Next: complete creation→signed webhook→receipt worker→posting worker→balanced ledger E2E proof, then small operational hardening/documentation.
+
 ## Neutral provider creation use case — 2026-10-10
 - Hosted worker pushed5360960; GitHub run38041762088 green.
 - Focused compile RED then10 GREEN cases for neutral CreateProviderPaymentHandler. Stored pending/unlinked payment and matching persisted explicit preparation required before provider call; amount/currency/idempotency come from stored payment. Creation observations, including Succeeded, never complete local payment. Reference persisted through existing concurrency-safe port before returning client secret; provider/persistence failures do not report success. Existing linked/completed payments rejected before outbound creation.

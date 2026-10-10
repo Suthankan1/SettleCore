@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using SettleCore.Modules.Payments.Application.CreateProviderPayment;
 using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -83,6 +84,7 @@ public static class DependencyInjection
         services.AddScoped<DispatchPaymentLedgerPostingHandler>();
 
         services.AddScoped<CreatePaymentHandler>();
+        services.AddScoped<CreateProviderPaymentHandler>();
         services.AddScoped<PreparePaymentLedgerPostingHandler>();
         services.AddScoped<GetPaymentByIdHandler>();
         services.AddScoped<GetPaymentLedgerPostingHandler>();

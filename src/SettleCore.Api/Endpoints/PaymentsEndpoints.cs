@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using SettleCore.Modules.Payments.Application.CreateProviderPayment;
 using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.PreparePaymentLedgerPosting;
@@ -298,6 +299,39 @@ public static class PaymentsEndpoints
         })
         .WithName("PreparePaymentLedgerPosting")
         .Produces<PaymentLedgerPostingRequest>(StatusCodes.Status200OK)
+        .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict);
+
+        endpoints.MapPost("/payments/{paymentId:guid}/provider-payment", async Task<IResult> (
+            Guid paymentId, IOptions<StripePaymentOptions> options, IServiceProvider services,
+            CancellationToken cancellationToken) =>
+        {
+            if (!options.Value.Enabled) return Results.NotFound();
+            try
+            {
+                var handler = services.GetRequiredService<CreateProviderPaymentHandler>();
+                var result = await handler.HandleAsync(paymentId, cancellationToken);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (ArgumentException exception)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    [exception.ParamName ?? "paymentId"] = [exception.Message]
+                });
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Conflict();
+            }
+            catch (ProviderPaymentReferenceConflictException)
+            {
+                return Results.Conflict();
+            }
+        })
+        .WithName("CreateProviderPayment")
+        .Produces<CreateProviderPaymentResult>(StatusCodes.Status200OK)
         .ProducesValidationProblem(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict);
