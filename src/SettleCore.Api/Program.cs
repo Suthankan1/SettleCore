@@ -1,3 +1,4 @@
+using SettleCore.Api.Security;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using SettleCore.Api.Health;
 using SettleCore.Modules.Payments.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ using SettleCore.Modules.Reconciliation.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddLocalApiAccess(builder.Configuration, builder.Environment);
 builder.Services.AddHealthChecks()
     .AddCheck<ModuleDatabaseHealthCheck<PaymentsDbContext>>("payments-database", tags: ["ready"], timeout: TimeSpan.FromSeconds(5))
     .AddCheck<ModuleDatabaseHealthCheck<LedgerDbContext>>("ledger-database", tags: ["ready"], timeout: TimeSpan.FromSeconds(5))
@@ -42,12 +44,15 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseHttpsRedirection();
 
-app.MapPaymentsEndpoints();
+var operatorEndpoints = app.MapGroup("").RequireAuthorization(LocalApiAccess.Policy);
+operatorEndpoints.MapPaymentsEndpoints();
+operatorEndpoints.MapReconciliationEndpoints();
+operatorEndpoints.MapLedgerEndpoints();
 app.MapStripeWebhookEndpoints();
-app.MapReconciliationEndpoints();
-app.MapLedgerEndpoints();
 
 app.MapHealthChecks(
     "/health/live",

@@ -54,7 +54,7 @@ Each worker has `BatchSize` (default 100), `PollIntervalMilliseconds` (default 5
 7. The receipt worker correlates evidence with the stored payment/reference/amount/currency/mode and explicit preparation. It atomically writes local success, one posting intent, lifecycle audit and receipt processing time. Deferred/failed receipts retain durable retries.
 8. The posting worker writes the balanced Ledger transaction, then acknowledges the intent. Observe `GET /payments/{paymentId}/ledger-posting` and `GET /ledger/transactions/{transactionId}`. Idempotent processing/replay preserves one transaction.
 
-Manual HTTP success is disabled whenever Stripe is enabled. Provider-linked payments cannot use manual application completion. Client secrets are response-only: never persist them, log them or put them in URLs. Protect these endpoints with the deployment's customer/operator access controls before external use.
+Manual HTTP success is disabled whenever Stripe is enabled. Provider-linked payments cannot use manual application completion. Client secrets are response-only: never persist them, log them or put them in URLs. All Payments, Ledger and Reconciliation endpoints require the local operator key by default.
 
 ## Creation retry recovery
 
@@ -71,3 +71,9 @@ The backend flow is verified using the actual SDK over isolated transport and re
 The posting metrics meter is `SettleCore.Payments`, with `settlecore.payment_posting.attempts`, `.completed`, `.failures` and `.retry_scheduling_failures`. Receipt processing currently emits bounded operational logs with provider/event identity; it does not log raw webhook bodies or client secrets. Tracked `PROJECT_CHECKPOINT.md` and the workspace handoff file record exact continuation state.
 
 Receipt worker metrics use the same meter, with `settlecore.provider_receipts.attempts`, `.completed`, `.deferred`, `.failures` and `.retry_scheduling_failures`. They have no tags. Completion counts processing outcomes (including already-processed replays), not unique charges. Deferral means missing local prerequisites; exceptions and retry-write failures have separate counters. Host cancellation does not count as failure.
+
+## Local operator access
+
+Set `LocalApiAccess__OperatorKey` to a randomly generated secret of at least 32 characters in the process environment (for example, `openssl rand -hex 32`). Send it only in the `X-SettleCore-Operator-Key` header over HTTPS. Access is enabled by default, including Development; an absent/short key prevents startup. Missing, wrong, duplicated or plain-HTTP credentials return 401 before handler/database/provider work. Key comparison is fixed-time over SHA-256 hashes; responses and validation messages do not include the key.
+
+All Payments, Ledger and Reconciliation routes share the operator authorization policy. This is a single-operator local portfolio backend, without customer identities or tenant roles. Health endpoints are public. The separately mapped Stripe webhook accepts no operator credential and instead authenticates its exact raw body with the Stripe signature. The integration test assembly explicitly disables access for existing isolated behavior tests; security and complete acceptance tests turn it on. An explicit `LocalApiAccess__Enabled=false` is allowed only in Development for isolated experiments; it is not the demo default. Do not share the key, put it in URLs or tracked files, enable HTTP access, or bind the local demo to a public interface.

@@ -1,5 +1,12 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Default-on local operator access controls — 2026-10-10
+- Recovery committed/pushed2cb09b80f6eea76c7d45d904b86ad950c70e9422; GitHub38060538501 running. Metrics16c6b2f8aa6a8ab0855b32ff21663044a19628f2 CI38060340876 success.
+- Behavioral RED unauthenticated sensitive writes reached validation; GREEN authenticated route group covers all Payments/Ledger/Reconciliation reads and writes. Dedicated local operator key header, HTTPS required, fixed-time hashed comparison, duplicate headers rejected. Default enabled; missing/short key fails startup options; disabling permitted only explicitly in Development. Health and separately signed webhook ingress remain public.
+-14 access/config cases passed in full CI-equivalent Release454, zero failed/skipped; build zero warnings/errors. Existing behavior tests explicitly disable access only in test assembly initializer; access tests override enabled. No application bypass default or secret tracked.
+- Next: full acceptance with key/provisioning/all module migrations/readiness; local Kestrel smoke; README/architecture/demo/optional real TEST-mode docs.
+
+
 ## Verified orphan reference recovery — 2026-10-10
 - Metrics committed/pushed16c6b2f8aa6a8ab0855b32ff21663044a19628f2 (GitHub38060340876 running); provisioning70715939cd9b2be6fbcd7acc9d765e16a62b9c38 CI38060173768 success.
 - HTTP RED accepted mismatched provider reference, then GREEN: when Stripe enabled, existing POST provider-reference uses neutral recovery handler plus reader correlation before durable attach. Supplied original reference retrieved only; identity/amount/currency/mode/reference verification remains Infrastructure-owned. Linked conflicting reference rejected; unique concurrent persistence reused. Disabled manual path retained for local demonstrations.
