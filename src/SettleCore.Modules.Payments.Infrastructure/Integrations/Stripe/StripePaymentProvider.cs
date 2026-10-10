@@ -30,7 +30,7 @@ public sealed class StripePaymentProvider(StripeClient client) : IPaymentProvide
             intent.ClientSecret);
     }
 
-    private static ProviderPaymentStatus NormalizeStatus(string status) => status switch
+    internal static ProviderPaymentStatus NormalizeStatus(string status) => status switch
     {
         "requires_payment_method" or "requires_confirmation" => ProviderPaymentStatus.Pending,
         "requires_action" => ProviderPaymentStatus.RequiresAction,

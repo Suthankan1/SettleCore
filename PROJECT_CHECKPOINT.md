@@ -1,5 +1,10 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Neutral provider lookup and Stripe adapter — 2026-10-10
+- Readiness separately pushed4145a29. Compile RED then7 GREEN transport cases for separate neutral lookup request/port and Infrastructure-only Stripe retrieval adapter. GET uses stored reference; identity metadata, reference, amount, currency and explicitly configured mode must match before returning response-only secret/status. Wrong provider rejected before I/O. No local success mutation.
+- Reuses existing status normalization; no SDK/core coupling. Infrastructure104 passed; full Release build zero warnings/errors. Latest full422 before7 added cases; no HTTP/DI lookup wiring yet.
+- Next: stored-payment lookup application/HTTP path with no-store secret and missing/unlinked404; then recovery end-to-end and operations docs. Backend only.
+
 ## Truthful module readiness — 2026-10-10
 - Posting-worker CI repair68187d190f6162e92224acea530309fcf30b58fe; GitHub run38045974781 green before resuming feature edits. User clarified backend-only continuation.
 - Real HTTP RED showed readiness200 for unavailable/unmigrated databases. GREEN registers scoped, timeout-bounded checks for Payments/Ledger/Reconciliation connectivity and pending migrations; generic failure messages, no exception/connection data in health result. Liveness excludes dependencies.
