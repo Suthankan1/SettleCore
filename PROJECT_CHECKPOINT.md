@@ -1,5 +1,11 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Complete provider-to-ledger acceptance proof — 2026-10-10
+- HTTP composition separately pushedbf6d77c; application09276ad CI green.
+- Test-only slice extends PostgreSQL/real SDK fake transport coverage through explicit account provisioning, HTTP preparation+provider creation, invalid signed evidence rejection, valid signed receipt, automatic authoritative success and posting, and replay. Single balanced3-entry transaction uses exact caller transaction/ledger/account IDs and34 minor-unit fee; no creation-response success side effects.
+- Focused E2E1 passed; full host module111 passed; full Release build zero warnings/errors. Latest full aggregate418 before this added test. No production changes in this slice.
+- Next: no-store client-secret response header RED/GREEN, then provider-flow operations/limitations documentation and remaining backend hardening.
+
 ## Provider creation HTTP composition — 2026-10-10
 - Neutral use case separately pushed09276ad. Focused HTTP behavioral RED (missing route) then2 GREEN tests with PostgreSQL and actual Stripe SDK over isolated fake transport; no live provider request.
 - POST /payments/{id}/provider-payment checks enabled Stripe before resolving provider; disabled/missing payment404, missing preparation/already-linked409. SDK receives stored amount/currency/identity key and metadata; returned reference persisted before200/client secret. Creation reports Succeeded in test while local payment remains Pending and no intent/audit is created. Linked replay rejected before another provider call.
