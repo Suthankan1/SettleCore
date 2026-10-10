@@ -8,6 +8,8 @@ public sealed class PaymentsDbContext(
     DbContextOptions<PaymentsDbContext> options)
     : DbContext(options)
 {
+    public DbSet<PaymentLedgerPostingPreparation> PaymentLedgerPostingPreparations => Set<PaymentLedgerPostingPreparation>();
+
     public DbSet<Payment> Payments => Set<Payment>();
 
     public DbSet<PaymentLedgerPostingIntent> PaymentLedgerPostingIntents =>
@@ -21,6 +23,7 @@ public sealed class PaymentsDbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfiguration(new PaymentLedgerPostingPreparationConfiguration());
         modelBuilder.ApplyConfiguration(new PaymentProviderEventReceiptConfiguration());
         modelBuilder.ApplyConfiguration(new PaymentLedgerPostingEventConfiguration());
 

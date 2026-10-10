@@ -1,6 +1,14 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current progress — 2026-10-10 neutral success correlation
+## Current progress — 2026-10-10 durable posting preparation
+- Neutral correlation separately committed/pushed `de7cbcfd461650c8691996eec820badbf924ada1`.
+- Focused compile RED then four PostgreSQL GREEN cases, plus existing-payment FK check. Neutral repository stores the immutable complete explicit posting payload in separate preparation table. Identical/concurrent replay succeeds, different transaction/routing/amount/fee/currency preserves one winner and conflicts. No payment status, dispatch intent or audit event changes.
+- Additive migration `20261010021835_AddPaymentLedgerPostingPreparations` adds preparation table keyed by payment with restrictive FK; apply before using preparation. Infrastructure-only persistence entity; neutral application payload/contract.
+- Payments Infrastructure75 passed; full solution368 passed, zero failed/skipped; build zero warnings/errors. This commit contains repository/migration/checkpoint; exact SHA recorded in workspace handoff after push. No unfinished source changes at commit.
+- Next smallest RED: application/HTTP prepare endpoint validates explicit inputs against stored amount/currency, persists preparation and retains Pending. Then atomic correlated inbox processing and worker wiring. Preparation must never itself authorize payment success.
+- Durable memory uses tracked checkpoint/workspace handoff; account-wide memory/UI switching unavailable. Last quota73% short-window/54% weekly remaining.
+
+## Earlier slice — 2026-10-10 neutral success correlation
 - Signed HTTP ingress committed/pushed separately as `9ad8304aa6a96edea508d77e6d84c5bce116f0de`.
 - Focused compile-time RED then GREEN for provider-neutral stored payment correlation. Eleven new cases require matching payment identity, stored provider and reference, exact amount at established currency precision, ordinal normalized currency and explicit expected mode. Missing reference/mismatches reject; unsupported currency cannot authorize success. Validation never changes status.
 - Payments unit module 130 passed; full solution 363 passed, zero failed/skipped; build zero warnings/errors. This commit contains correlation and checkpoint, exact SHA in workspace handoff after push; no unfinished source edits.
