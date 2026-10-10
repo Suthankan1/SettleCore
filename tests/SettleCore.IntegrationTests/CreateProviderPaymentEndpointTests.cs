@@ -53,6 +53,7 @@ public sealed class CreateProviderPaymentEndpointTests
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync($"/payments/{payment.PaymentId}/ledger-posting/preparation", input)).StatusCode);
         var response = await client.PostAsync(path, null);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.NoStore);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("test-client-secret", json.RootElement.GetProperty("clientSecret").GetString());
         Assert.Equal("pi_http_create", json.RootElement.GetProperty("providerReference").GetProperty("reference").GetString());

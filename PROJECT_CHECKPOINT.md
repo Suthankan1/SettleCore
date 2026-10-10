@@ -1,5 +1,10 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Client-secret response cache protection — 2026-10-10
+- Complete flow proof separately pushed73fa8cf. Focused behavioral RED: provider creation response had no Cache-Control; GREEN sets no-store before successful response serialization. Secrets remain response-only.
+- All3 creation/end-to-end tests passed; full Release build zero warnings/errors. Latest host111/full418 checks precede this header-only change.
+- Next: backend readiness currently registers no dependency checks; add truthful PostgreSQL/schema readiness while preserving dependency-free liveness, then operations documentation.
+
 ## Complete provider-to-ledger acceptance proof — 2026-10-10
 - HTTP composition separately pushedbf6d77c; application09276ad CI green.
 - Test-only slice extends PostgreSQL/real SDK fake transport coverage through explicit account provisioning, HTTP preparation+provider creation, invalid signed evidence rejection, valid signed receipt, automatic authoritative success and posting, and replay. Single balanced3-entry transaction uses exact caller transaction/ledger/account IDs and34 minor-unit fee; no creation-response success side effects.

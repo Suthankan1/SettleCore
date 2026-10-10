@@ -304,7 +304,7 @@ public static class PaymentsEndpoints
         .Produces(StatusCodes.Status409Conflict);
 
         endpoints.MapPost("/payments/{paymentId:guid}/provider-payment", async Task<IResult> (
-            Guid paymentId, IOptions<StripePaymentOptions> options, IServiceProvider services,
+            Guid paymentId, HttpResponse response, IOptions<StripePaymentOptions> options, IServiceProvider services,
             CancellationToken cancellationToken) =>
         {
             if (!options.Value.Enabled) return Results.NotFound();
@@ -312,6 +312,7 @@ public static class PaymentsEndpoints
             {
                 var handler = services.GetRequiredService<CreateProviderPaymentHandler>();
                 var result = await handler.HandleAsync(paymentId, cancellationToken);
+                response.Headers.CacheControl = "no-store";
                 return result is null ? Results.NotFound() : Results.Ok(result);
             }
             catch (ArgumentException exception)
