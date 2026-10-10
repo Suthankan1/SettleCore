@@ -1,6 +1,13 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current progress — 2026-10-10 atomic authoritative receipt completion
+## Current progress — 2026-10-10 concurrency-safe provider reference attachment
+- Atomic receipt completion separately committed/pushed `547041d02d69e5d883f573d96bfa303911051814`.
+- Behavioral PostgreSQL RED reproduced three failures: stale Pending snapshot overwrote concurrent Succeeded status, reference replacement was allowed, conflicting concurrent writes both succeeded. Minimal GREEN adds neutral reference persistence port and conditional reference-only UPDATE; handler uses it rather than whole-payment Update. Matching replay succeeds; different reference conflicts, one concurrent winner. Existing cross-payment uniqueness still returns409.
+- Four focused tests GREEN; full solution387 passed, zero failed/skipped; full build zero warnings/errors. Existing unit/HTTP fakes implement the neutral reference port. No migration. This commit contains fix/checkpoint; exact SHA in workspace handoff after push.
+- Next: provider-mode manual-success protection, neutral inbox retry selection/scheduling and opt-in processing worker, then neutral provider creation use case. Preserve status under reference persistence; authoritative receipt processor is the only provider completion route.
+- Quota last43% short-window/49% weekly remaining. Durable checkpoint/workspace handoff only; no account-wide memory or automatic UI switching.
+
+## Earlier slice — 2026-10-10 atomic authoritative receipt completion
 - Preparation API separately committed/pushed `a6dab11aa293d9f307d22093da768fde3b3762f4`.
 - Focused compile RED then14 PostgreSQL GREEN cases for neutral event-processing contract and Infrastructure transaction. Locks receipt then payment, validates stored reference/identity/amount/currency/explicit mode, requires immutable explicit preparation, and commits payment success+Pending dispatch intent+IntentRecorded audit+receipt ProcessedAt together.
 - Matching replay preserves first ProcessedAt. Concurrent same/distinct events serialize and retain one intent/audit. Missing receipt/payment/reference/preparation stays unprocessed; early missing-reference delivery processes after local reference arrives. Mismatched evidence cannot authorize success. Forced receipt update failure rolls all success writes back and retry succeeds. EF payment materialization uses ordinary mapped query after scalar row lock to preserve optional complex reference mapping.

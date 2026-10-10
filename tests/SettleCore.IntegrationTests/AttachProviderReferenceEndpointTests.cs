@@ -119,15 +119,25 @@ public sealed class AttachProviderReferenceEndpointTests
                 services.RemoveAll<IPaymentRepository>();
 
                 services.AddSingleton(repository);
+                services.RemoveAll<IPaymentProviderReferencePersistence>();
+                services.AddSingleton<IPaymentProviderReferencePersistence>((IPaymentProviderReferencePersistence)repository);
             });
         }
     }
 
     private sealed class RecordingPaymentRepository(
         Payment? payment)
-        : IPaymentRepository
+        : IPaymentRepository, IPaymentProviderReferencePersistence
     {
         public Payment? UpdatedPayment { get; private set; }
+
+        public Task<bool> AttachAsync(PaymentId id, ProviderPaymentReference reference, CancellationToken cancellationToken = default)
+        {
+            if (payment is null || payment.Id != id) return Task.FromResult(false);
+            payment.AttachProviderReference(reference);
+            UpdatedPayment = payment;
+            return Task.FromResult(true);
+        }
 
         public Task AddAsync(
             Payment payment,

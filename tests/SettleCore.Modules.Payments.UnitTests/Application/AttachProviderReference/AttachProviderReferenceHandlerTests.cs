@@ -17,7 +17,7 @@ public sealed class AttachProviderReferenceHandlerTests
             new RecordingPaymentRepository(payment);
 
         var handler =
-            new AttachProviderReferenceHandler(repository);
+            new AttachProviderReferenceHandler(repository, repository);
 
         var result = await handler.HandleAsync(
             new AttachProviderReferenceCommand(
@@ -60,7 +60,7 @@ public sealed class AttachProviderReferenceHandlerTests
             new RecordingPaymentRepository(payment: null);
 
         var handler =
-            new AttachProviderReferenceHandler(repository);
+            new AttachProviderReferenceHandler(repository, repository);
 
         var result = await handler.HandleAsync(
             new AttachProviderReferenceCommand(
@@ -74,9 +74,17 @@ public sealed class AttachProviderReferenceHandlerTests
 
     private sealed class RecordingPaymentRepository(
         Payment? payment)
-        : IPaymentRepository
+        : IPaymentRepository, IPaymentProviderReferencePersistence
     {
         public Payment? UpdatedPayment { get; private set; }
+
+        public Task<bool> AttachAsync(PaymentId id, ProviderPaymentReference reference, CancellationToken cancellationToken = default)
+        {
+            if (payment is null || payment.Id != id) return Task.FromResult(false);
+            payment.AttachProviderReference(reference);
+            UpdatedPayment = payment;
+            return Task.FromResult(true);
+        }
 
         public Task AddAsync(
             Payment payment,

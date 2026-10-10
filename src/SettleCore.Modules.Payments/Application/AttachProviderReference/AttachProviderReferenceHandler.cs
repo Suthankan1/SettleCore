@@ -4,7 +4,7 @@ using SettleCore.Modules.Payments.Domain;
 namespace SettleCore.Modules.Payments.Application.AttachProviderReference;
 
 public sealed class AttachProviderReferenceHandler(
-    IPaymentRepository repository)
+    IPaymentRepository repository, IPaymentProviderReferencePersistence persistence)
 {
     public async Task<AttachProviderReferenceResult?> HandleAsync(
         AttachProviderReferenceCommand command,
@@ -32,9 +32,10 @@ public sealed class AttachProviderReferenceHandler(
         payment.AttachProviderReference(
             providerReference);
 
-        await repository.UpdateAsync(
-            payment,
-            cancellationToken);
+        if (!await persistence.AttachAsync(paymentId, providerReference, cancellationToken))
+        {
+            return null;
+        }
 
         return new AttachProviderReferenceResult(
             payment.Id.Value,
