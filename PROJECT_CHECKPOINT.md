@@ -1,6 +1,13 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current progress — 2026-10-10 signed HTTP ingress
+## Current progress — 2026-10-10 neutral success correlation
+- Signed HTTP ingress committed/pushed separately as `9ad8304aa6a96edea508d77e6d84c5bce116f0de`.
+- Focused compile-time RED then GREEN for provider-neutral stored payment correlation. Eleven new cases require matching payment identity, stored provider and reference, exact amount at established currency precision, ordinal normalized currency and explicit expected mode. Missing reference/mismatches reject; unsupported currency cannot authorize success. Validation never changes status.
+- Payments unit module 130 passed; full solution 363 passed, zero failed/skipped; build zero warnings/errors. This commit contains correlation and checkpoint, exact SHA in workspace handoff after push; no unfinished source edits.
+- Next: PostgreSQL-backed immutable preparation of caller-supplied posting request while payment remains Pending, then atomic authenticated inbox completion using stored evidence/reference/preparation. No hidden accounts, fees or defaults.
+- Durable continuity in this tracked file and workspace handoff; account-wide memory/UI switching unavailable. Last visible quota82% short-window/55% weekly remaining.
+
+## Earlier slice — 2026-10-10 signed HTTP ingress
 - Resumed actual clean main `03421b13930fd40a933fff51094d5fb79615dbef`, independently matched GitHub. Older sibling SettleCore checkout was not used. Fresh baseline 344 tests passed, zero failures/skips.
 - Focused behavioral RED: seven HTTP cases returned 404; disabled case passed. GREEN: eight HTTP tests including real PostgreSQL durable receipt, identical replay, conflicting evidence, signature/mode rejection, unrelated signed event, unavailable storage and disabled ingress.
 - POST /payments/webhooks/stripe reads unchanged raw body, verifies through neutral decoder, checks explicit mode and awaits scoped durable inbox before 200. Invalid signature/mode 400, conflicting replay 409, disabled 404; storage exceptions cannot return 200. No SDK types entered core; no local success or ledger writes triggered by receipt.
