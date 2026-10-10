@@ -50,7 +50,7 @@ public sealed class EfPaymentProviderEventProcessor(PaymentsDbContext context, T
             await new EfPaymentSuccessPersistence(context, clock).SaveAsync(payment, intent, cancellationToken);
             var processedAt = clock.GetUtcNow().ToUniversalTime();
             var acknowledged = await context.Database.ExecuteSqlInterpolatedAsync($"""
-                UPDATE payment_provider_event_receipts SET processed_at = {processedAt}
+                UPDATE payment_provider_event_receipts SET processed_at = {processedAt}, next_attempt_at = NULL
                 WHERE provider = {provider} AND event_id = {eventId} AND processed_at IS NULL
                 """, cancellationToken);
             if (acknowledged != 1) throw new InvalidOperationException("Provider receipt acknowledgment was not persisted.");

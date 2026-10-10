@@ -122,6 +122,21 @@ public sealed class PaymentProviderEventProcessorTests : IAsyncLifetime
         await AssertCompleted(evidence.PaymentId);
     }
 
+    [Fact]
+    public async Task ConcurrentRetrySchedulingCannotReviveProcessedReceipt()
+    {
+        var evidence = await Seed();
+        await using var processing = new PaymentsDbContext(Options);
+        await using var scheduling = new PaymentsDbContext(Options);
+        var outcomes = await Task.WhenAll(Processor(processing).ProcessAsync("stripe", evidence.EventId, false),
+            new EfPaymentProviderEventInbox(scheduling, new Clock(Now)).ScheduleRetryAsync("stripe", evidence.EventId, Now.AddMinutes(1)));
+        Assert.True(outcomes[0]);
+        await using var reader = new PaymentsDbContext(Options);
+        var receipt = await reader.PaymentProviderEventReceipts.SingleAsync();
+        Assert.Equal(Now, receipt.ProcessedAt);
+        Assert.Null(receipt.NextAttemptAt);
+    }
+
     private async Task<ProviderPaymentSucceededEvent> Seed(string? missing = null, bool receive = true)
     {
         await using var context = new PaymentsDbContext(Options);

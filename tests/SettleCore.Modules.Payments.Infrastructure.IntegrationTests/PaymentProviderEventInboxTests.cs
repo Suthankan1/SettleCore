@@ -88,6 +88,43 @@ public sealed class PaymentProviderEventInboxTests : IAsyncLifetime
         Assert.Equal(2, await writer.PaymentProviderEventReceipts.CountAsync());
     }
 
+    [Fact]
+    public async Task PendingSelectionIsBoundedProviderScopedAndHonorsExplicitRetryTime()
+    {
+        await using var context = new PaymentsDbContext(Options);
+        await context.Database.MigrateAsync();
+        var first = Evidence() with { EventId = "evt_a" };
+        var second = Evidence() with { EventId = "evt_b" };
+        var other = Evidence() with { ProviderReference = ProviderPaymentReference.Create("other", "ref_test") };
+        var inbox = new EfPaymentProviderEventInbox(context, new FixedClock(ReceivedAt));
+        await inbox.ReceiveAsync(first);
+        await inbox.ReceiveAsync(second);
+        await inbox.ReceiveAsync(other);
+        Assert.Equal(first, Assert.Single(await inbox.GetPendingAsync("stripe", 1)));
+        Assert.True(await inbox.ScheduleRetryAsync("stripe", first.EventId, ReceivedAt.AddMinutes(1)));
+        Assert.Equal(second, Assert.Single(await inbox.GetPendingAsync("stripe", 1)));
+        var future = new EfPaymentProviderEventInbox(context, new FixedClock(ReceivedAt.AddMinutes(1)));
+        Assert.Equal(new[] { first, second }, await future.GetPendingAsync("stripe", 2));
+        Assert.Equal(other, Assert.Single(await inbox.GetPendingAsync("other", 10)));
+        Assert.Equal(ReceivedAt.AddMinutes(1), (await context.PaymentProviderEventReceipts.AsNoTracking()
+            .SingleAsync(x => x.EventId == first.EventId)).NextAttemptAt);
+    }
+
+    [Fact]
+    public async Task RetryCannotReviveProcessedReceiptAndMissingReceiptIsNoOp()
+    {
+        await using var context = new PaymentsDbContext(Options);
+        await context.Database.MigrateAsync();
+        var evidence = Evidence();
+        var inbox = new EfPaymentProviderEventInbox(context, new FixedClock(ReceivedAt));
+        Assert.False(await inbox.ScheduleRetryAsync("stripe", "evt_missing", ReceivedAt.AddMinutes(1)));
+        await inbox.ReceiveAsync(evidence);
+        await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE payment_provider_event_receipts SET processed_at = {ReceivedAt} WHERE event_id = {evidence.EventId}");
+        Assert.False(await inbox.ScheduleRetryAsync("stripe", evidence.EventId, ReceivedAt.AddMinutes(1)));
+        Assert.Empty(await inbox.GetPendingAsync("stripe", 10));
+        Assert.Null((await context.PaymentProviderEventReceipts.SingleAsync()).NextAttemptAt);
+    }
+
     private static ProviderPaymentSucceededEvent Evidence() => new("evt_test", PaymentId.New(),
         ProviderPaymentReference.Create("stripe", "pi_test"), 1234, "SGD", ReceivedAt.AddMinutes(-1), false);
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider

@@ -15,6 +15,7 @@ public sealed class PaymentProviderEventReceipt
     public DateTimeOffset OccurredAt { get; private set; }
     public bool IsLiveMode { get; private set; }
     public DateTimeOffset ReceivedAt { get; private set; }
+    public DateTimeOffset? NextAttemptAt { get; private set; }
     public DateTimeOffset? ProcessedAt { get; private set; }
 
     public ProviderPaymentSucceededEvent ToEvent() => new(EventId,

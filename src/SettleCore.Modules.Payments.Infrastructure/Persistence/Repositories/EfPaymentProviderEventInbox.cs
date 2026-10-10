@@ -5,6 +5,31 @@ namespace SettleCore.Modules.Payments.Infrastructure.Persistence.Repositories;
 
 public sealed class EfPaymentProviderEventInbox(PaymentsDbContext dbContext, TimeProvider clock) : IPaymentProviderEventInbox
 {
+    public async Task<IReadOnlyList<ProviderPaymentSucceededEvent>> GetPendingAsync(string provider, int batchSize,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(batchSize);
+        var now = clock.GetUtcNow();
+        var receipts = await dbContext.PaymentProviderEventReceipts.AsNoTracking()
+            .Where(x => x.Provider == provider && x.ProcessedAt == null &&
+                (x.NextAttemptAt == null || x.NextAttemptAt <= now))
+            .OrderBy(x => x.ReceivedAt).ThenBy(x => x.EventId).Take(batchSize).ToListAsync(cancellationToken);
+        return receipts.Select(x => x.ToEvent()).ToArray();
+    }
+
+    public async Task<bool> ScheduleRetryAsync(string provider, string eventId, DateTimeOffset nextAttemptAt,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventId);
+        var due = nextAttemptAt.ToUniversalTime();
+        return await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE payment_provider_event_receipts SET next_attempt_at = {due}
+            WHERE provider = {provider} AND event_id = {eventId} AND processed_at IS NULL
+            """, cancellationToken) == 1;
+    }
+
     public async Task<bool> ReceiveAsync(ProviderPaymentSucceededEvent evidence, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(evidence);

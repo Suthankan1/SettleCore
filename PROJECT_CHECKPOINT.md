@@ -1,6 +1,14 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current progress — 2026-10-10 manual provider-completion bypass protection
+## Current progress — 2026-10-10 durable provider inbox retry schedule
+- Manual provider completion guards separately committed/pushed `32095cd018deb52f3e83290dae8ff023ad644387`.
+- Focused compile RED then three PostgreSQL GREEN cases for neutral bounded/provider-scoped due selection and explicit UTC retry scheduling. Exact due boundary included; future receipts excluded; missing/processed scheduling no-op; concurrent acknowledgment/scheduling cannot revive receipt. Atomic completion clears due time with ProcessedAt.
+- Additive migration `20261010023409_AddProviderEventRetrySchedule` adds nullable next_attempt_at and pending due index; retains existing index/receipts. Apply before updated processor/worker. Generated migration adapted to existing static-array analyzer convention.
+- Infrastructure96 passed; full solution393 passed, zero failed/skipped; build zero warnings/errors. This commit contains retry repository/migration/checkpoint; exact SHA in workspace handoff after push. No unfinished source changes at commit.
+- Next: opt-in retrying inbox batch processor and hosted worker, with signed HTTP-to-authoritative-success proof and deferred/invalid-event scheduling checks. Provider creation application/HTTP wiring remains next afterward; no frontend/live provider calls.
+- Last quota27% short-window/47% weekly remaining. Stop new slices near10%; durable tracked checkpoint/workspace handoff, no account-wide memory/UI switching.
+
+## Earlier slice — 2026-10-10 manual provider-completion bypass protection
 - Reference-only persistence separately committed/pushed `0a5dc9ae1d51d5236bab9798b75acadcabd6d39e`.
 - Focused two unit and one HTTP behavioral RED then GREEN. Both manual application handlers reject provider-linked payments before status changes/writes. Stripe-enabled HTTP /succeed returns409 before reading payment state, protecting the period before provider reference persistence. Disabled/manual non-provider workflow retains existing behavior.
 - Payments unit132 and host96 passed, zero failed/skipped; full build zero warnings/errors. Last full solution387 before this guard slice; no unverified aggregate claimed. This commit contains guards/checkpoint; exact SHA recorded in workspace handoff after push.
