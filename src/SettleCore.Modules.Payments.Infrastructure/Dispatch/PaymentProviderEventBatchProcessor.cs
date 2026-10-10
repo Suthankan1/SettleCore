@@ -5,7 +5,7 @@ using SettleCore.Modules.Payments.Application.Abstractions;
 namespace SettleCore.Modules.Payments.Infrastructure.Dispatch;
 
 public sealed partial class PaymentProviderEventBatchProcessor(
-    IServiceScopeFactory scopeFactory, TimeProvider clock, ILogger<PaymentProviderEventBatchProcessor> logger)
+    IServiceScopeFactory scopeFactory, TimeProvider clock, ILogger<PaymentProviderEventBatchProcessor> logger, PaymentProviderEventMetrics metrics)
 {
     public async Task<int> ProcessAsync(string provider, bool expectedLiveMode, int batchSize, TimeSpan retryDelay,
         CancellationToken cancellationToken = default)
@@ -23,16 +23,20 @@ public sealed partial class PaymentProviderEventBatchProcessor(
             cancellationToken.ThrowIfCancellationRequested();
             await using var scope = scopeFactory.CreateAsyncScope();
             var processor = scope.ServiceProvider.GetRequiredService<IPaymentProviderEventProcessor>();
+            metrics.RecordAttempt();
             try
             {
                 if (await processor.ProcessAsync(provider, receipt.EventId, expectedLiveMode, cancellationToken))
                 {
                     completed++;
+                    metrics.RecordCompleted();
                     continue;
                 }
+                metrics.RecordDeferred();
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
+                metrics.RecordFailure();
                 ProcessingFailed(logger, exception, provider, receipt.EventId);
             }
             try
@@ -42,6 +46,7 @@ public sealed partial class PaymentProviderEventBatchProcessor(
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
+                metrics.RecordRetrySchedulingFailure();
                 RetrySchedulingFailed(logger, exception, provider, receipt.EventId);
             }
         }

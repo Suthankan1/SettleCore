@@ -1,5 +1,12 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Provider receipt worker metrics — 2026-10-10
+- Ledger provisioning committed/pushed70715939cd9b2be6fbcd7acc9d765e16a62b9c38; GitHub38060173768 running tests at this checkpoint.
+- Behavioral RED missing attempts then GREEN tag-free counters for attempts/completed/deferred/failures/retry_scheduling_failures under SettleCore.Payments. No provider/event/payment identities or secret tags. Durable batch test plus retry-write failure/cancellation cases validate outcomes; cancellation is not failure.
+- Full CI-equivalent Release439 passed, zero failed/skipped; build zero warnings/errors. No schema change. Exact slice SHA and CI in following checkpoint.
+- Next: verify supplied original provider reference before orphan recovery; operator access controls; final local acceptance/docs.
+
+
 ## Explicit Ledger account provisioning — 2026-10-10
 - Fresh baseline clean main/remote 23b2fdcce39f74afcd799a591a4de5bc3eda36cc, GitHub CI 38055377306 success; fresh Release436 passed, no failures/skips, build zero warnings/errors.
 - HTTP RED404 then GREEN: POST /ledger/accounts takes explicit AccountId/LedgerId/Currency; validated normalized domain account, identical/concurrent replay200, changed ledger/currency409, invalid identity400. Parameterized INSERT ON CONFLICT preserves original account; no migration/default accounting policy.
