@@ -1,5 +1,10 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Durable creation attempt timestamps — 2026-10-10
+- HTTP recovery separately pushedf375b0d; lookup16fff80 CI green. Compile RED then3 PostgreSQL GREEN cases for immutable per-payment first creation attempt. INSERT ON CONFLICT preserves first timestamp across retry/restart/concurrent calls; FK requires existing payment; no payment/intent side effects or sensitive payload.
+- Additive migration20261010105446_AddPaymentProviderCreationAttempts and snapshot reviewed: new table with payment identity/start timestamp only, restrictive FK; no existing data edits. Infrastructure107 passed; full Release build zero warnings/errors. Latest full429 before3 added cases.
+- Next: application retry-age guard (23h conservative Stripe window, stale/future attempts blocked before outbound calls), DI and focused HTTP/unit proof, full verification, operations docs. Backend only.
+
 ## Stored-reference HTTP recovery — 2026-10-10
 - Lookup adapter separately pushed16fff80; readiness4145a29 CI green. HTTP behavioral RED405 then GREEN for neutral stored-payment lookup handler and GET /payments/{id}/provider-payment. Disabled/missing/unlinked404, correlation mismatch409 without secret. Successful response no-store; SDK GET exact stored intent, no new creation POST. Lookup observations never mutate local payment/intent/audit.
 - All3 provider-flow tests passed; full Release429 passed, zero failed/skipped; build zero warnings/errors.
