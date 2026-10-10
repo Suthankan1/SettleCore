@@ -11,13 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
-builder.Services.AddOptions<PaymentLedgerPostingWorkerOptions>()
-    .Bind(builder.Configuration.GetSection("PaymentLedgerPostingWorker"))
-    .Validate(static settings => settings.BatchSize > 0 &&
-        settings.PollIntervalMilliseconds > 0 && settings.RetryDelaySeconds > 0,
-        "Payment posting batch size, poll interval and retry delay must be positive.")
-    .ValidateOnStart();
-builder.Services.AddHostedService<PaymentLedgerPostingWorker>();
+builder.Services.AddPaymentLedgerPostingWorker(builder.Configuration);
 
 builder.Services.AddOptions<PaymentProviderEventWorkerOptions>()
     .Bind(builder.Configuration.GetSection("PaymentProviderEventWorker"))

@@ -24,7 +24,26 @@ public sealed class PaymentLedgerPostingWorkerConfigurationTests
     public void InvalidOperationalSettingPreventsHostStartup(string setting, string value)
     {
         using var factory = new InvalidSettingsFactory(setting, value);
-        var exception = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+    }
+
+    [Theory]
+    [InlineData("BatchSize", "0")]
+    [InlineData("PollIntervalMilliseconds", "-1")]
+    [InlineData("RetryDelaySeconds", "0")]
+    public void InvalidOperationalSettingFailsExactOptionsValidation(string setting, string value)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["PaymentLedgerPostingWorker:Enabled"] = "true",
+            [$"PaymentLedgerPostingWorker:{setting}"] = value
+        }).Build();
+        var services = new ServiceCollection();
+        services.AddPaymentLedgerPostingWorker(configuration);
+        using var provider = services.BuildServiceProvider();
+        var exception = Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<PaymentLedgerPostingWorkerOptions>>().Value);
+        Assert.Equal(typeof(PaymentLedgerPostingWorkerOptions), exception.OptionsType);
         Assert.Contains("must be positive", exception.Message, StringComparison.Ordinal);
     }
 

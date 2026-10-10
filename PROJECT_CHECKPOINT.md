@@ -1,5 +1,10 @@
 # SettleCore checkpoint — 2026-10-10
 
+## Posting worker startup CI repair — 2026-10-10
+- CI forbf6d77c exposed same framework cleanup mismatch in existing posting-worker PollIntervalMilliseconds invalid-setting host assertion. Latest533e16d CI happened to pass; fragility remains reproducible in CI logs.
+- Extracted unchanged production posting-worker options/host registration into API extension. Host behavioral assertion accepts startup failure;3 exact OptionsValidationException/type/message cases resolve production options registration deterministically.
+- Focused configuration20 passed; full Release422 passed, zero failed/skipped; build zero warnings/errors. No payment behavior changed. Readiness RED tests saved temporarily outside checkout until repair pushed; then resume truthful database/schema readiness.
+
 ## Client-secret response cache protection — 2026-10-10
 - Complete flow proof separately pushed73fa8cf. Focused behavioral RED: provider creation response had no Cache-Control; GREEN sets no-store before successful response serialization. Secrets remain response-only.
 - All3 creation/end-to-end tests passed; full Release build zero warnings/errors. Latest host111/full418 checks precede this header-only change.
