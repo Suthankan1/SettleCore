@@ -24,6 +24,11 @@ public sealed class MarkPaymentSucceededHandler(
             return null;
         }
 
+        if (payment.ProviderReference is not null)
+        {
+            throw new InvalidOperationException("Provider-linked payments require verified provider success evidence.");
+        }
+
         payment.MarkSucceeded();
 
         await repository.UpdateAsync(

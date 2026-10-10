@@ -19,6 +19,11 @@ public sealed class RecordPaymentSuccessHandler(
             return null;
         }
 
+        if (payment.ProviderReference is not null)
+        {
+            throw new InvalidOperationException("Provider-linked payments require verified provider success evidence.");
+        }
+
         var request = PaymentLedgerPostingRequestFactory.Create(payment, command.PostingInput);
         var intent = PaymentLedgerPostingIntent.Create(payment.Id,
             request.TransactionId, request.LedgerId,

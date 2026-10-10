@@ -1,6 +1,13 @@
 # SettleCore checkpoint — 2026-10-08
 
-## Current progress — 2026-10-10 concurrency-safe provider reference attachment
+## Current progress — 2026-10-10 manual provider-completion bypass protection
+- Reference-only persistence separately committed/pushed `0a5dc9ae1d51d5236bab9798b75acadcabd6d39e`.
+- Focused two unit and one HTTP behavioral RED then GREEN. Both manual application handlers reject provider-linked payments before status changes/writes. Stripe-enabled HTTP /succeed returns409 before reading payment state, protecting the period before provider reference persistence. Disabled/manual non-provider workflow retains existing behavior.
+- Payments unit132 and host96 passed, zero failed/skipped; full build zero warnings/errors. Last full solution387 before this guard slice; no unverified aggregate claimed. This commit contains guards/checkpoint; exact SHA recorded in workspace handoff after push.
+- Next: neutral durable inbox due selection/retry schedule, then opt-in hosted processing worker. Then provider creation use case can be connected without manual HTTP success bypass or reference-update status regression.
+- Last quota36% short-window/48% weekly remaining; finish green slices, stop new work near10%. Durable tracked checkpoint/workspace handoff; account-wide memory/UI switching unavailable.
+
+## Earlier slice — 2026-10-10 concurrency-safe provider reference attachment
 - Atomic receipt completion separately committed/pushed `547041d02d69e5d883f573d96bfa303911051814`.
 - Behavioral PostgreSQL RED reproduced three failures: stale Pending snapshot overwrote concurrent Succeeded status, reference replacement was allowed, conflicting concurrent writes both succeeded. Minimal GREEN adds neutral reference persistence port and conditional reference-only UPDATE; handler uses it rather than whole-payment Update. Matching replay succeeds; different reference conflicts, one concurrent winner. Existing cross-payment uniqueness still returns409.
 - Four focused tests GREEN; full solution387 passed, zero failed/skipped; full build zero warnings/errors. Existing unit/HTTP fakes implement the neutral reference port. No migration. This commit contains fix/checkpoint; exact SHA in workspace handoff after push.

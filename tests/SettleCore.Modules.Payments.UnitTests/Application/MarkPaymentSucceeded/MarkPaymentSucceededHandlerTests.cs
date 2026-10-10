@@ -60,6 +60,18 @@ public sealed class MarkPaymentSucceededHandlerTests
         Assert.Null(repository.UpdatedPayment);
     }
 
+    [Fact]
+    public async Task ProviderLinkedPaymentCannotUseStatusOnlyManualCompletion()
+    {
+        var payment = Payment.Create(150m, "SGD");
+        payment.AttachProviderReference(ProviderPaymentReference.Create("stripe", "pi_test"));
+        var repository = new RecordingPaymentRepository(payment);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new MarkPaymentSucceededHandler(repository)
+            .HandleAsync(new(payment.Id.Value)));
+        Assert.Equal(PaymentStatus.Pending, payment.Status);
+        Assert.Null(repository.UpdatedPayment);
+    }
+
     private sealed class RecordingPaymentRepository(
         Payment? payment)
         : IPaymentRepository

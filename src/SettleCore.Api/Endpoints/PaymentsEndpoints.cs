@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using SettleCore.Modules.Payments.Infrastructure.Integrations.Stripe;
 using SettleCore.Modules.Payments.Application.AttachProviderReference;
 using SettleCore.Modules.Payments.Application.PreparePaymentLedgerPosting;
 using SettleCore.Modules.Payments.Application.Abstractions;
@@ -169,8 +171,13 @@ public static class PaymentsEndpoints
                     Guid paymentId,
                     PaymentLedgerPostingInput postingInput,
                     RecordPaymentSuccessHandler handler,
+                    IOptions<StripePaymentOptions> providerOptions,
                     CancellationToken cancellationToken) =>
                 {
+                    if (providerOptions.Value.Enabled)
+                    {
+                        return Results.Conflict(new { error = "Enabled provider payments require verified provider success evidence." });
+                    }
                     try
                     {
                         var result = await handler.HandleAsync(

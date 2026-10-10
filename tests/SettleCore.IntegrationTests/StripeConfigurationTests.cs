@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -46,6 +48,19 @@ public sealed class StripeConfigurationTests
     {
         using var factory = new StripeFactory(setting, value);
         Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+    }
+
+    [Fact]
+    public async Task EnabledProviderDisablesManualHttpCompletionBeforeLocalReferenceExists()
+    {
+        using var factory = new StripeFactory();
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        var response = await client.PostAsJsonAsync($"/payments/{Guid.NewGuid()}/succeed", new
+        {
+            transactionId = Guid.NewGuid(), ledgerId = Guid.NewGuid(), processorReceivableAccountId = Guid.NewGuid(),
+            merchantPayableAccountId = Guid.NewGuid(), platformRevenueAccountId = Guid.NewGuid(), feeAmountMinorUnits = 100
+        });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     private sealed class StripeFactory(string? setting = null, string? value = null) : WebApplicationFactory<Program>

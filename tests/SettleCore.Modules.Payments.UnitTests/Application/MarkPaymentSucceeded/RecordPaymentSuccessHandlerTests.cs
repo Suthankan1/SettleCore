@@ -60,6 +60,18 @@ public sealed class RecordPaymentSuccessHandlerTests
         Assert.Equal(0, persistence.Calls);
     }
 
+    [Fact]
+    public async Task ProviderLinkedPaymentCannotBeCompletedManually()
+    {
+        var payment = Payment.Create(150m, "SGD");
+        payment.AttachProviderReference(ProviderPaymentReference.Create("stripe", "pi_test"));
+        var persistence = new RecordingPersistence();
+        var handler = new RecordPaymentSuccessHandler(new RecordingPaymentRepository(payment), persistence);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(new(payment.Id.Value, Input())));
+        Assert.Equal(PaymentStatus.Pending, payment.Status);
+        Assert.Equal(0, persistence.Calls);
+    }
+
     private static PaymentLedgerPostingInput Input() => new(
         Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 300);
 
