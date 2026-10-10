@@ -1,0 +1,71 @@
+# SettleCore backend operations
+
+SettleCore is a modular .NET backend with separate Payments, Ledger and Reconciliation persistence contexts. Stripe PaymentIntents are the first provider. SDK types remain in Payments Infrastructure; application/domain contracts remain provider-neutral.
+
+## Verify and run
+
+Use the SDK pinned by `global.json` and a running Docker daemon for PostgreSQL integration tests.
+
+```sh
+dotnet restore SettleCore.slnx
+dotnet build SettleCore.slnx --configuration Release --no-restore
+dotnet test SettleCore.slnx --configuration Release --no-build --verbosity normal
+```
+
+Supply `ConnectionStrings__Payments`, `ConnectionStrings__Ledger` and `ConnectionStrings__Reconciliation` through the deployment's secret/configuration mechanism. Development connection strings are local examples. Production has no database defaults. Keep credentials out of tracked configuration and verification logs.
+
+Apply all module migrations before routing traffic or enabling workers. Use the infrastructure project as both project and startup project; each has its own design-time context factory. Always provide the intended connection explicitly so the design-time database is not selected accidentally.
+
+```sh
+dotnet tool restore --tool-manifest dotnet-tools.json
+dotnet ef database update --project src/SettleCore.Modules.Payments.Infrastructure --startup-project src/SettleCore.Modules.Payments.Infrastructure --context PaymentsDbContext --connection "$ConnectionStrings__Payments"
+dotnet ef database update --project src/SettleCore.Modules.Ledger.Infrastructure --startup-project src/SettleCore.Modules.Ledger.Infrastructure --context LedgerDbContext --connection "$ConnectionStrings__Ledger"
+dotnet ef database update --project src/SettleCore.Modules.Reconciliation.Infrastructure --startup-project src/SettleCore.Modules.Reconciliation.Infrastructure --context ReconciliationDbContext --connection "$ConnectionStrings__Reconciliation"
+```
+
+The newest Payments migration is `20261010105446_AddPaymentProviderCreationAttempts`. Earlier inbox, posting preparation and receipt retry migrations are also required. Migrations are not applied automatically at host startup.
+
+`/health/live` checks process liveness without database dependencies. `/health/ready` returns 503 if any module database is unreachable or has pending migrations; 200 requires all three ready. Dependency checks have five-second timeouts and do not return connection details.
+
+## Explicit provider configuration
+
+Stripe and both workers are disabled by default. Configure each independently:
+
+| Environment setting | Meaning |
+|---|---|
+| `Payments__Stripe__Enabled` | Enable Stripe creation, retrieval and signed ingress |
+| `Payments__Stripe__ApiKey` | API key from the secret store |
+| `Payments__Stripe__WebhookSecret` | Endpoint signing secret from the secret store |
+| `Payments__Stripe__SignatureToleranceSeconds` | Explicit positive signature tolerance |
+| `Payments__Stripe__IsLiveMode` | Explicit `true` or `false`; must match incoming/retrieved provider evidence |
+| `PaymentProviderEventWorker__Enabled` | Poll and process durable provider receipts; requires enabled Stripe and explicit mode |
+| `PaymentLedgerPostingWorker__Enabled` | Dispatch durable posting intents to Ledger |
+
+Each worker has `BatchSize` (default 100), `PollIntervalMilliseconds` (default 5000) and `RetryDelaySeconds` (default 60) under its section. All must be positive. These are operational settings, not accounting policy. Enabling Stripe does not enable either worker.
+
+## Payment flow
+
+1. Create a local payment with `POST /payments` and explicit amount/currency.
+2. Provision the intended Ledger accounts through a trusted provisioning process. Accounts must already exist with the exact ledger identity and currency. The backend currently has no account provisioning HTTP endpoint.
+3. Submit `POST /payments/{paymentId}/ledger-posting/preparation` with explicit transaction, ledger, processor receivable, merchant payable and platform revenue account IDs and fee amount in minor units. Fee must be positive and below gross. Stored preparation is immutable; conflicting changes return 409. No fees, accounts or routing are inferred.
+4. Call `POST /payments/{paymentId}/provider-payment`. Missing payment or disabled provider returns 404; missing preparation, completed/linked payment or expired creation attempt returns 409. The SDK receives stored amount/currency, identity metadata and `settlecore:payment:{paymentId:N}:create` as its idempotency key. Reference persistence must succeed before the response returns the client secret.
+5. Use `GET /payments/{paymentId}/provider-payment` to recover details for an already-linked intent. It retrieves the stored reference, verifies identity/amount/currency/mode, and returns 409 without a secret on mismatch. Missing/unlinked/disabled returns 404. Creation and lookup responses containing secrets use `Cache-Control: no-store`. Neither provider observation marks a local payment succeeded.
+6. Stripe sends `payment_intent.succeeded` to `POST /payments/webhooks/stripe` with its signature and exact raw body. Verified matching-mode evidence is durably stored before 200. Invalid signature/mode returns 400; conflicting replay returns 409; storage failure is never acknowledged as success.
+7. The receipt worker correlates evidence with the stored payment/reference/amount/currency/mode and explicit preparation. It atomically writes local success, one posting intent, lifecycle audit and receipt processing time. Deferred/failed receipts retain durable retries.
+8. The posting worker writes the balanced Ledger transaction, then acknowledges the intent. Observe `GET /payments/{paymentId}/ledger-posting` and `GET /ledger/transactions/{transactionId}`. Idempotent processing/replay preserves one transaction.
+
+Manual HTTP success is disabled whenever Stripe is enabled. Provider-linked payments cannot use manual application completion. Client secrets are response-only: never persist them, log them or put them in URLs. Protect these endpoints with the deployment's customer/operator access controls before external use.
+
+## Creation retry recovery
+
+The first creation attempt is recorded durably before contacting the provider. Matching retries do not reset its timestamp. Stripe composition uses a conservative 23-hour creation retry window; at or after that boundary, or for future-dated records, creation returns 409 without contacting Stripe.
+
+If creation succeeded remotely but reference persistence failed, retry with the same local payment only inside that window. Afterward, reconcile the original Stripe PaymentIntent using trusted provider evidence and the SettleCore identity, attach its verified reference through the existing reference path, and use GET retrieval. Do not delete the attempt record, invent a new payment identity or blindly create a replacement to bypass the guard. A prior remote attempt made before this timestamp mechanism was deployed must be reconciled explicitly; the backend cannot infer its historical age.
+
+Stripe v1 keys can be pruned after at least 24 hours; reuse after pruning may create another object. See [Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests) and [PaymentIntent reuse and client-secret handling](https://docs.stripe.com/payments/payment-intents).
+
+## Remaining production work
+
+The backend flow is verified using the actual SDK over isolated transport and real PostgreSQL, including separate Payments/Ledger stores. Live Stripe test-mode acceptance, credentials, deployment, customer/operator authentication and authorization, TLS/proxy configuration, account provisioning API, reconciliation of stale orphaned creation attempts, provider receipt operational metrics and release procedures remain separate work. No production deployment or live payment is claimed. Frontend is explicitly outside this continuation.
+
+The posting metrics meter is `SettleCore.Payments`, with `settlecore.payment_posting.attempts`, `.completed`, `.failures` and `.retry_scheduling_failures`. Receipt processing currently emits bounded operational logs with provider/event identity; it does not log raw webhook bodies or client secrets. Tracked `PROJECT_CHECKPOINT.md` and the workspace handoff file record exact continuation state.
